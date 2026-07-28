@@ -277,11 +277,15 @@ app.post('/api/checkout/mayar', async (c) => {
 })
 
 // --- API: Mayar Webhook ---
+app.get('/api/webhooks/mayar', async (c) => c.json({ ok: true }))
 app.post('/api/webhooks/mayar', async (c) => {
-  const body = await c.req.json()
+  const raw = await c.req.text()
+  let body: any
+  try { body = JSON.parse(raw) } catch { return c.json({ ok: false, error: 'invalid json' }, 400) }
   const db = getDb(c.env)
-  const orderId = body.extraData?.orderId || body.data?.extraData?.orderId
-  if (orderId && body.status === 'PAID') {
+  const isPaid = body.event === 'payment.success' || body.status === 'PAID' || body.status === 'paid'
+  const orderId = body.extraData?.orderId || body.data?.invoice?.extraData?.orderId || body.data?.extraData?.orderId || body.invoice?.extraData?.orderId
+  if (orderId && isPaid) {
     await db.update(s.orders).set({ status: 'paid', updatedAt: now() }).where(eq(s.orders.id, orderId))
   }
   return c.json({ ok: true })
