@@ -144,7 +144,8 @@ app.get('/search', async (c) => {
 // --- Checkout ---
 app.get('/checkout', async (c) => {
   const settings = await loadSettings(c)
-  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage /></Layout>)
+  const mayarEnabled = settings['mayar_enabled'] !== '0'
+  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage mayarEnabled={mayarEnabled} /></Layout>)
 })
 
 // --- Success ---

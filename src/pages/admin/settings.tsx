@@ -92,6 +92,17 @@ export const AdminSettingsPage = ({ settings, mayarConfigured }: { settings: Rec
         <span class="w-3 h-3 rounded-full ${mayarConfigured ? 'bg-green-500' : 'bg-red-500'}"></span>
         <span>${mayarConfigured ? 'Mayar API key terkonfigurasi' : 'Mayar API key tidak ditemukan'}</span>
       </div>
+      ${mayarConfigured ? html`
+        <form onsubmit="event.preventDefault(); saveSettings(event)">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="mayar_enabled" value="1" ${settings['mayar_enabled'] !== '0' ? 'checked' : ''} class="w-5 h-5 rounded border-zinc-300 text-primary-600 focus:ring-primary-500" onchange="this.form.requestSubmit()">
+            <div>
+              <span class="block text-sm font-medium">Aktifkan Mayar Payment</span>
+              <span class="block text-xs text-zinc-500">Nonaktifkan untuk menyembunyikan opsi Mayar di halaman checkout.</span>
+            </div>
+          </label>
+        </form>
+      ` : ''}
     </div>
   </div>
   <script>

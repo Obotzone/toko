@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 
-export const CheckoutForm = (): any => html`
+export const CheckoutForm = ({ mayarEnabled = true }: { mayarEnabled?: boolean }): any => html`
   <form id="checkout-form" class="space-y-6">
     <input type="hidden" id="checkout-items-input" name="items" value="[]">
 
@@ -27,6 +27,7 @@ export const CheckoutForm = (): any => html`
     <div>
       <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Metode Pembayaran</label>
       <div class="space-y-3">
+        ${mayarEnabled ? html`
         <label class="flex items-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
           <input type="radio" name="paymentMethod" value="mayar" class="text-primary-600 focus:ring-primary-500 mr-3">
           <div>
@@ -34,6 +35,7 @@ export const CheckoutForm = (): any => html`
             <span class="block text-xs text-zinc-500">Pembayaran via Mayar.id, verifikasi otomatis.</span>
           </div>
         </label>
+        ` : ''}
         <label class="flex items-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
           <input type="radio" name="paymentMethod" value="manual" class="text-primary-600 focus:ring-primary-500 mr-3">
           <div>
