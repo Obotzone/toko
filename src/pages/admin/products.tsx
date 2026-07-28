@@ -58,8 +58,13 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
           </select>
         </div>
         <div>
-          <label for="p-image" class="block text-sm font-medium mb-1">URL Gambar</label>
-          <input type="text" id="p-image" name="imageUrl" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="URL eksternal atau upload via form edit">
+          <label for="p-image" class="block text-sm font-medium mb-1">URL Gambar (eksternal)</label>
+          <input type="text" id="p-image" name="imageUrl" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="https://...">
+        </div>
+        <div class="md:col-span-2">
+          <label for="p-image-file" class="block text-sm font-medium mb-1">Upload Gambar ke R2</label>
+          <input type="file" id="p-image-file" accept="image/*" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100">
+          <p class="text-xs text-zinc-500 mt-1">Maks 5MB. Akan mengganti URL gambar di atas jika diisi.</p>
         </div>
         <div class="md:col-span-2">
           <label for="p-desc" class="block text-sm font-medium mb-1">Deskripsi</label>
@@ -228,6 +233,19 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
     async function submitCreateForm(event) {
       var form = event.target;
       var data = Object.fromEntries(new FormData(form));
+      var fileInput = document.getElementById('p-image-file');
+      if (fileInput.files && fileInput.files[0]) {
+        var fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        var uploadRes = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (uploadRes.ok) {
+          var uploadData = await uploadRes.json();
+          data.imageUrl = uploadData.key;
+        } else {
+          var err = await uploadRes.json();
+          if (err.error) { alert(err.error); return; }
+        }
+      }
       await adminPost('/api/admin/products', data);
     }
 
