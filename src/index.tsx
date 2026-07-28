@@ -310,8 +310,8 @@ app.post('/api/upload', async (c) => {
 })
 
 // --- API: Serve Image ---
-app.get('/api/images/:key+', async (c) => {
-  let key = c.req.param('key') as string
+app.get('/api/images/*', async (c) => {
+  let key = c.req.path.replace(/^\/api\/images\//, '')
   let obj = await getImage(c.env.BUCKET, key)
   if (!obj) obj = await getImage(c.env.BUCKET, key.replace(/^products\//, ''))
   if (!obj) obj = await getImage(c.env.BUCKET, `products/${key}`)
