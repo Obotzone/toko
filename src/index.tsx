@@ -313,9 +313,8 @@ app.post('/api/upload', async (c) => {
 app.get('/api/images/:key+', async (c) => {
   let key = c.req.param('key') as string
   let obj = await getImage(c.env.BUCKET, key)
-  if (!obj && !key.startsWith('products/')) {
-    obj = await getImage(c.env.BUCKET, `products/${key}`)
-  }
+  if (!obj) obj = await getImage(c.env.BUCKET, key.replace(/^products\//, ''))
+  if (!obj) obj = await getImage(c.env.BUCKET, `products/${key}`)
   if (!obj) return c.notFound()
   const headers = new Headers()
   headers.set('Content-Type', obj.httpMetadata?.contentType || 'image/jpeg')

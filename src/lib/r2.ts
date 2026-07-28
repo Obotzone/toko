@@ -1,5 +1,5 @@
 export async function uploadImage(bucket: R2Bucket, filename: string, contentType: string, body: ArrayBuffer): Promise<string> {
-  const key = `products/${filename}`;
+  const key = filename;
   await bucket.put(key, body, {
     httpMetadata: { contentType },
     customMetadata: { uploadedAt: new Date().toISOString() }
