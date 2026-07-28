@@ -95,6 +95,7 @@ export const AdminSettingsPage = ({ settings, mayarConfigured }: { settings: Rec
       ${mayarConfigured ? html`
         <form onsubmit="event.preventDefault(); saveSettings(event)">
           <label class="flex items-center gap-3 cursor-pointer">
+            <input type="hidden" name="mayar_enabled" value="0">
             <input type="checkbox" name="mayar_enabled" value="1" ${settings['mayar_enabled'] !== '0' ? 'checked' : ''} class="w-5 h-5 rounded border-zinc-300 text-primary-600 focus:ring-primary-500" onchange="this.form.requestSubmit()">
             <div>
               <span class="block text-sm font-medium">Aktifkan Mayar Payment</span>
