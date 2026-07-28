@@ -6,9 +6,12 @@ interface Order {
   totalAmount: number;
   paymentMethod: string;
   customerName: string;
+  customerEmail: string;
 }
 
-export const SuccessPage = ({ order, settings = {} }: { order: Order; settings?: Record<string, string> }): any => {
+interface OrderItem { id: string; productId: string | null; productName: string; quantity: number; }
+
+export const SuccessPage = ({ order, items = [], settings = {} }: { order: Order; items?: OrderItem[]; settings?: Record<string, string> }): any => {
   const qrisKey = settings['qris_image'] || '';
   const bankName = settings['bank_name'] || '';
   const bankAccount = settings['bank_account'] || '';
@@ -65,7 +68,7 @@ export const SuccessPage = ({ order, settings = {} }: { order: Order; settings?:
         </div>
       ` : ''}
       
-      <div id="payment-status" class="text-sm text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded-md mt-6">
+      ${order.status === "paid" && items.length ? html`        <div class="border-t border-zinc-200 dark:border-zinc-800 pt-6 mt-6">          <h3 class="font-semibold text-lg mb-4">Download Produk Digital</h3>          <div class="space-y-3">            ${items.filter(i => i.productId).map(i => html`              <a href="/api/download/${order.id}/${i.id}?email=${order.customerEmail}" class="flex items-center justify-between p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">                <span class="font-medium text-sm">${i.productName}</span>                <span class="text-primary-600 text-sm font-semibold">Download &rarr;</span>              </a>            `)}          </div>        </div>      ` : ""}            <div id="payment-status" class="text-sm text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded-md mt-6">
         ${order.status === 'paid' 
           ? html`<p class="text-green-600 font-medium">Pembayaran telah dikonfirmasi.</p>`
           : html`

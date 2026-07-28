@@ -328,6 +328,28 @@ app.get('/api/images/*', async (c) => {
   return new Response(obj.body, { headers })
 })
 
+// --- API: Download Digital Product ---
+app.get('/api/download/:orderId/:itemId', async (c) => {
+  const db = getDb(c.env)
+  const { orderId, itemId } = c.req.param() as any
+  const email = c.req.query('email')
+  if (!email) return c.text('Email diperlukan', 400)
+  const [order] = await db.select().from(s.orders).where(and(eq(s.orders.id, orderId), eq(s.orders.customerEmail, email))).limit(1)
+  if (!order) return c.text('Pesanan tidak ditemukan', 404)
+  if (order.status !== 'paid') return c.text('Pesanan belum dibayar', 402)
+  const [item] = await db.select().from(s.orderItems).where(and(eq(s.orderItems.id, itemId), eq(s.orderItems.orderId, orderId))).limit(1)
+  if (!item || !item.productId) return c.text('Item tidak ditemukan', 404)
+  const [product] = await db.select().from(s.products).where(eq(s.products.id, item.productId)).limit(1)
+  if (!product || !product.fileKey) return c.text('File tidak tersedia', 404)
+  const obj = await getImage(c.env.BUCKET, product.fileKey)
+  if (!obj) return c.text('File tidak ditemukan', 404)
+  const headers = new Headers()
+  headers.set('Content-Type', obj.httpMetadata?.contentType || 'application/octet-stream')
+  headers.set('Content-Disposition', 'attachment')
+  headers.set('Cache-Control', 'no-cache')
+  return new Response(obj.body, { headers })
+})
+
 // --- API: Track ---
 app.get('/api/track', async (c) => {
   const db = getDb(c.env)

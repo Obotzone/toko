@@ -9,6 +9,7 @@ interface Product {
   price: number;
   stock: number;
   imageUrl: string | null;
+  fileKey: string | null;
   type: string;
   isActive: number;
   isFeatured: number;
@@ -103,7 +104,10 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
                 <td class="px-4 py-3 font-medium">${p.name}</td>
                 <td class="px-4 py-3 text-right">${idr(p.price)}</td>
                 <td class="px-4 py-3 text-center">${p.stock}</td>
-                <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 rounded-full text-xs ${p.type === 'digital' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">${p.type}</span></td>
+                <td class="px-4 py-3 text-center">
+                  <span class="px-2 py-0.5 rounded-full text-xs ${p.type === 'digital' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">${p.type}</span>
+                  ${p.type === 'digital' && p.fileKey ? html`<span class="ml-1 text-xs text-green-600">file</span>` : ''}
+                </td>
                 <td class="px-4 py-3 text-center">
                   <span class="px-2 py-0.5 rounded-full text-xs ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${p.isActive ? 'Aktif' : 'Nonaktif'}</span>
                   ${p.isFeatured ? html`<span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Unggulan</span>` : ''}
@@ -180,6 +184,16 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
             </div>
           </div>
           <div class="md:col-span-2">
+            <label for="e-file" class="block text-sm font-medium mb-1">File Produk Digital <span class="text-xs text-zinc-400">(hanya untuk tipe Digital)</span></label>
+            <input type="file" id="e-file" accept=".pdf,.zip,.epub,.mp3,.mp4,.jpg,.png,.docx,.xlsx,.pptx" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100">
+            <p class="text-xs text-zinc-500 mt-1" id="e-file-status">Upload file digital. Customer akan download setelah pembayaran.</p>
+          </div>
+          <div class="md:col-span-2">
+            <label for="e-file" class="block text-sm font-medium mb-1 mt-2">File Produk Digital <span class="text-xs text-zinc-400">(hanya untuk tipe Digital)</span></label>
+            <input type="file" id="e-file" accept=".pdf,.zip,.epub,.mp3,.mp4,.jpg,.png" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100">
+            <p class="text-xs text-zinc-500 mt-1" id="e-file-status">Upload file digital. Customer download setelah bayar.</p>
+          </div>
+          <div class="md:col-span-2">
             <label for="e-desc" class="block text-sm font-medium mb-1">Deskripsi</label>
             <textarea id="e-desc" name="description" rows="3" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800"></textarea>
           </div>
@@ -220,6 +234,7 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
         preview.classList.add('hidden');
       }
       document.getElementById('e-image-status').textContent = product.imageUrl && !product.imageUrl.startsWith('http') ? 'Gambar dari R2: ' + product.imageUrl : 'Maks 5MB. Upload akan mengganti URL gambar.';
+      document.getElementById('e-file-status').textContent = product.fileKey ? 'File saat ini: ' + product.fileKey : 'Upload file digital. Customer download setelah bayar.';
       document.getElementById('edit-modal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
     }
