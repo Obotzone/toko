@@ -186,18 +186,6 @@ document.addEventListener('submit', async function(e) {
       } else {
         window.location.href = '/checkout/success?orderId=' + orderId;
       }
-    } else if (pm === 'stripe') {
-      var stripeRes = await fetch('/api/checkout/stripe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: orderId })
-      });
-      if (stripeRes.ok) {
-        var url = (await stripeRes.json()).url;
-        window.location.href = url;
-      } else {
-        window.location.href = '/checkout/success?orderId=' + orderId;
-      }
     } else {
       window.location.href = '/checkout/success?orderId=' + orderId;
     }

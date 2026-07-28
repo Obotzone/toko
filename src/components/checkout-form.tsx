@@ -35,13 +35,6 @@ export const CheckoutForm = (): any => html`
           </div>
         </label>
         <label class="flex items-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
-          <input type="radio" name="paymentMethod" value="stripe" class="text-primary-600 focus:ring-primary-500 mr-3">
-          <div>
-            <span class="block font-medium text-sm">Stripe (Kartu / Link Pembayaran)</span>
-            <span class="block text-xs text-zinc-500">Bayar via kartu kredit atau Stripe Link.</span>
-          </div>
-        </label>
-        <label class="flex items-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
           <input type="radio" name="paymentMethod" value="manual" class="text-primary-600 focus:ring-primary-500 mr-3">
           <div>
             <span class="block font-medium text-sm">Transfer Bank Manual</span>

@@ -4,7 +4,6 @@ import { eq, and, like, or, desc, asc, count, sql } from 'drizzle-orm'
 import * as s from './schema'
 import { idr, slugify, genId, now, SHIPPING_COST, TAX_RATE, calcShipping, calcTax } from './lib/utils'
 import { createMayarInvoice } from './lib/mayar'
-import { createStripeSession, verifyStripeSignature } from './lib/stripe'
 import { uploadImage, getImage, deleteImage } from './lib/r2'
 import { APP_JS } from './client/app-content'
 import { Layout } from './components/layout'
@@ -28,7 +27,7 @@ import { ContactPage } from './pages/static/contact'
 import { PrivacyPage } from './pages/static/privacy'
 import { ShippingPage } from './pages/static/shipping'
 
-const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; MAYAR_API_KEY?: string; ADMIN_SECRET?: string; STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string } }>()
+const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; MAYAR_API_KEY?: string; ADMIN_SECRET?: string } }>()
 const PER_PAGE = 20
 
 function checkAdmin(c: any) {
@@ -36,8 +35,19 @@ function checkAdmin(c: any) {
   return secret === c.env.ADMIN_SECRET
 }
 
+async function loadSettings(c: any): Promise<Record<string, string>> {
+  const db = getDb(c.env)
+  const rows = await db.select().from(s.storeSettings)
+  const settings: Record<string, string> = {}
+  for (const r of rows) settings[r.key] = r.value || ''
+  return settings
+}
+
 // --- Static Pages ---
-const staticPage = (title: string, content: any) => (c: any) => c.html(<Layout title={title}>{content}</Layout>)
+const staticPage = (title: string, content: any) => async (c: any) => {
+  const settings = await loadSettings(c)
+  return c.html(<Layout title={title} settings={settings}>{content}</Layout>)
+}
 
 app.get('/about', staticPage('Tentang', <AboutPage />))
 app.get('/contact', staticPage('Kontak', <ContactPage />))
@@ -49,7 +59,8 @@ app.get('/', async (c) => {
   const db = getDb(c.env)
   const featured = await db.select().from(s.products).where(and(eq(s.products.isActive, 1), eq(s.products.isFeatured, 1))).limit(8)
   const cats = await db.select().from(s.categories).orderBy(s.categories.sortOrder)
-  return c.html(<Layout title="Beranda"><HomePage products={featured} categories={cats} /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Beranda" settings={settings}><HomePage products={featured} categories={cats} /></Layout>)
 })
 
 // --- Product Detail ---
@@ -62,7 +73,8 @@ app.get('/products/:slug', async (c) => {
   if (product.categoryId) {
     related = await db.select().from(s.products).where(and(eq(s.products.categoryId, product.categoryId), eq(s.products.isActive, 1), sql`${s.products.id} != ${product.id}`)).limit(4)
   }
-  return c.html(<Layout title={product.name}><ProductPage product={product} related={related} /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title={product.name} settings={settings}><ProductPage product={product} related={related} /></Layout>)
 })
 
 // --- Categories ---
@@ -76,7 +88,8 @@ app.get('/categories', async (c) => {
     imageUrl: s.categories.imageUrl,
     productCount: count()
   }).from(s.categories).leftJoin(s.products, eq(s.categories.id, s.products.categoryId)).where(eq(s.products.isActive, 1)).groupBy(s.categories.id).orderBy(s.categories.sortOrder)
-  return c.html(<Layout title="Kategori"><CategoriesPage categories={cats} /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Kategori" settings={settings}><CategoriesPage categories={cats} /></Layout>)
 })
 
 // --- Category Page ---
@@ -99,8 +112,9 @@ app.get('/categories/:slug', async (c) => {
   const total = (await db.select({ count: count() }).from(s.products).where(and(eq(s.products.categoryId, cat.id), eq(s.products.isActive, 1))))[0].count
   const products = await baseQuery.orderBy(orderBy).limit(PER_PAGE).offset((page - 1) * PER_PAGE)
   const totalPages = Math.ceil(total / PER_PAGE)
+  const settings = await loadSettings(c)
 
-  return c.html(<Layout title={cat.name}><CategoryPage products={products} categoryName={cat.name} categorySlug={cat.slug} sort={sort} page={page} totalPages={totalPages} /></Layout>)
+  return c.html(<Layout title={cat.name} settings={settings}><CategoryPage products={products} categoryName={cat.name} categorySlug={cat.slug} sort={sort} page={page} totalPages={totalPages} /></Layout>)
 })
 
 // --- Search ---
@@ -122,13 +136,15 @@ app.get('/search', async (c) => {
   const total = (await db.select({ count: count() }).from(s.products).where(and(...conditions)))[0].count
   const products = await db.select().from(s.products).where(and(...conditions)).orderBy(desc(s.products.createdAt)).limit(PER_PAGE).offset((page - 1) * PER_PAGE)
   const totalPages = Math.ceil(total / PER_PAGE)
+  const settings = await loadSettings(c)
 
-  return c.html(<Layout title="Cari"><SearchPage products={products} categories={cats} q={q} category={catId} min={min} max={max} page={page} totalPages={totalPages} /></Layout>)
+  return c.html(<Layout title="Cari" settings={settings}><SearchPage products={products} categories={cats} q={q} category={catId} min={min} max={max} page={page} totalPages={totalPages} /></Layout>)
 })
 
 // --- Checkout ---
 app.get('/checkout', async (c) => {
-  return c.html(<Layout title="Checkout"><CheckoutPage /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage /></Layout>)
 })
 
 // --- Success ---
@@ -138,7 +154,8 @@ app.get('/checkout/success', async (c) => {
   if (!orderId) return c.redirect('/')
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, orderId)).limit(1)
   if (!order) return c.redirect('/')
-  return c.html(<Layout title="Pesanan Berhasil"><SuccessPage order={order} /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Pesanan Berhasil" settings={settings}><SuccessPage order={order} /></Layout>)
 })
 
 // --- Track ---
@@ -150,10 +167,12 @@ app.get('/track', async (c) => {
     const [order] = await db.select().from(s.orders).where(and(eq(s.orders.id, orderId), eq(s.orders.customerEmail, email))).limit(1)
     if (order) {
       const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, order.id))
-      return c.html(<Layout title="Lacak Pesanan"><TrackPage order={{ ...order, items }} /></Layout>)
+      const settings = await loadSettings(c)
+      return c.html(<Layout title="Lacak Pesanan" settings={settings}><TrackPage order={{ ...order, items }} /></Layout>)
     }
   }
-  return c.html(<Layout title="Lacak Pesanan"><TrackPage /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Lacak Pesanan" settings={settings}><TrackPage /></Layout>)
 })
 
 // --- API: Products JSON ---
@@ -257,33 +276,6 @@ app.post('/api/checkout/mayar', async (c) => {
   return c.json({ link: result.data.link })
 })
 
-// --- API: Stripe Checkout ---
-app.post('/api/checkout/stripe', async (c) => {
-  const body = await c.req.json()
-  const { orderId } = body
-  if (!c.env.STRIPE_SECRET_KEY) return c.json({ error: 'Stripe tidak dikonfigurasi' }, 400)
-  const db = getDb(c.env)
-  const [order] = await db.select().from(s.orders).where(eq(s.orders.id, orderId)).limit(1)
-  if (!order) return c.json({ error: 'Pesanan tidak ditemukan' }, 404)
-  const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, orderId))
-
-  const origin = new URL(c.req.url).origin
-  const result = await createStripeSession(c.env.STRIPE_SECRET_KEY, {
-    line_items: items.map(i => ({
-      price_data: { currency: 'idr', product_data: { name: i.productName }, unit_amount: i.productPrice },
-      quantity: i.quantity
-    })),
-    mode: 'payment',
-    success_url: `${origin}/checkout/success?orderId=${orderId}`,
-    cancel_url: `${origin}/checkout`,
-    customer_email: order.customerEmail,
-    metadata: { orderId }
-  })
-
-  await db.update(s.orders).set({ paymentId: result.id }).where(eq(s.orders.id, orderId))
-  return c.json({ url: result.url })
-})
-
 // --- API: Mayar Webhook ---
 app.post('/api/webhooks/mayar', async (c) => {
   const body = await c.req.json()
@@ -343,7 +335,8 @@ app.get('/api/track', async (c) => {
 
 // --- Admin: Login ---
 app.get('/admin/login', async (c) => {
-  return c.html(<Layout title="Admin Login" isAdmin={true}>
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Admin Login" isAdmin={true} settings={settings}>
     <div class="max-w-md mx-auto mt-20 p-8 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
       <h1 class="text-2xl font-bold mb-6 text-center">Login Admin</h1>
       <form action="/api/admin/login" method="post" class="space-y-4">
@@ -402,7 +395,8 @@ app.get('/admin', adminRoute(async (c) => {
   const [pending] = await db.select({ count: count() }).from(s.orders).where(eq(s.orders.status, 'pending'))
   const recent = await db.select().from(s.orders).orderBy(desc(s.orders.createdAt)).limit(5)
   const stats = { totalProducts: prodCount.count, totalOrders: orderCount.count, totalRevenue: rev.total, pendingOrders: pending.count }
-  return c.html(<Layout title="Dashboard" isAdmin={true}><DashboardPage stats={stats} recentOrders={recent} /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Dashboard" isAdmin={true} settings={settings}><DashboardPage stats={stats} recentOrders={recent} /></Layout>)
 }))
 
 // --- Admin: Products ---
@@ -412,7 +406,8 @@ app.get('/admin/products', adminRoute(async (c) => {
   const total = (await db.select({ count: count() }).from(s.products))[0].count
   const products = await db.select().from(s.products).orderBy(desc(s.products.createdAt)).limit(PER_PAGE).offset((page - 1) * PER_PAGE)
   const cats = await db.select().from(s.categories)
-  return c.html(<Layout title="Produk" isAdmin={true}><AdminProductsPage products={products} categories={cats} page={page} totalPages={Math.ceil(total / PER_PAGE)} /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Produk" isAdmin={true} settings={settings}><AdminProductsPage products={products} categories={cats} page={page} totalPages={Math.ceil(total / PER_PAGE)} /></Layout>)
 }))
 
 app.post('/api/admin/products', adminRoute(async (c) => {
@@ -463,7 +458,8 @@ app.get('/admin/orders', adminRoute(async (c) => {
     const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, o.id))
     result.push({ ...o, items })
   }
-  return c.html(<Layout title="Pesanan" isAdmin={true}><AdminOrdersPage orders={result} page={page} totalPages={Math.ceil(total / PER_PAGE)} statusFilter={statusFilter} /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Pesanan" isAdmin={true} settings={settings}><AdminOrdersPage orders={result} page={page} totalPages={Math.ceil(total / PER_PAGE)} statusFilter={statusFilter} /></Layout>)
 }))
 
 app.get('/admin/orders/:id', adminRoute(async (c) => {
@@ -472,7 +468,8 @@ app.get('/admin/orders/:id', adminRoute(async (c) => {
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, id)).limit(1)
   if (!order) return c.notFound()
   const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, order.id))
-  return c.html(<Layout title={`Pesanan ${id.slice(0, 8)}`} isAdmin={true}>
+  const settings = await loadSettings(c)
+  return c.html(<Layout title={`Pesanan ${id.slice(0, 8)}`} isAdmin={true} settings={settings}>
     <div class="space-y-6 max-w-3xl">
       <a href="/admin/orders" class="text-sm text-primary-600 hover:underline">&larr; Kembali</a>
       <h1 class="text-3xl font-bold">Pesanan #{id.slice(0, 8)}</h1>
@@ -544,7 +541,8 @@ app.get('/admin/categories', adminRoute(async (c) => {
     sortOrder: s.categories.sortOrder,
     productCount: count()
   }).from(s.categories).leftJoin(s.products, eq(s.categories.id, s.products.categoryId)).groupBy(s.categories.id).orderBy(s.categories.sortOrder)
-  return c.html(<Layout title="Kategori" isAdmin={true}><AdminCategoriesPage categories={cats} /></Layout>)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Kategori" isAdmin={true} settings={settings}><AdminCategoriesPage categories={cats} /></Layout>)
 }))
 
 app.post('/api/admin/categories', adminRoute(async (c) => {
@@ -581,7 +579,7 @@ app.get('/admin/settings', adminRoute(async (c) => {
   const rows = await db.select().from(s.storeSettings)
   const settings: Record<string, string> = {}
   for (const r of rows) settings[r.key] = r.value || ''
-  return c.html(<Layout title="Pengaturan" isAdmin={true}>
+  return c.html(<Layout title="Pengaturan" isAdmin={true} settings={settings}>
     <AdminSettingsPage settings={settings} mayarConfigured={!!c.env.MAYAR_API_KEY} />
   </Layout>)
 }))
@@ -598,23 +596,6 @@ app.post('/api/admin/settings', adminRoute(async (c) => {
 // --- Client JS ---
 app.get('/client/app.js', (c) => {
   return new Response(APP_JS, { headers: { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=3600' } })
-})
-
-// --- Webhook: Stripe ---
-app.post('/api/webhooks/stripe', async (c) => {
-  const body = await c.req.text()
-  const sig = c.req.header('stripe-signature')
-  const valid = await verifyStripeSignature(c.env.STRIPE_WEBHOOK_SECRET || '', body, sig || null)
-  if (!valid) return c.json({ error: 'invalid signature' }, 400)
-  const event = JSON.parse(body)
-  if (event.type === 'checkout.session.completed') {
-    const orderId = event.data.object.metadata?.orderId
-    if (orderId) {
-      const db = getDb(c.env)
-      await db.update(s.orders).set({ status: 'paid', updatedAt: now() }).where(eq(s.orders.id, orderId))
-    }
-  }
-  return c.json({ received: true })
 })
 
 export default app

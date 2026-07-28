@@ -1,15 +1,26 @@
 import { html } from 'hono/html';
-import type { HtmlEscapedString } from 'hono/utils/html';
 
 const CART_DRAWER_ID = 'cart-drawer';
 
-export const Layout = ({ title, children, isAdmin = false }: { title: string; children: any; isAdmin?: boolean }) => html`
+export const Layout = ({ title, children, isAdmin = false, settings = {} }: { title: string; children: any; isAdmin?: boolean; settings?: Record<string, string> }) => {
+  const storeName = settings['store_name'] || 'Etalase';
+  const desc = settings['store_description'] || 'Toko online terpercaya untuk kebutuhan Anda.';
+  const keywords = settings['store_keywords'] || 'toko online, belanja, e-commerce';
+  const logoKey = settings['store_logo'] || null;
+  const logoUrl = logoKey ? (logoKey.startsWith('http') ? logoKey : '/api/images/' + logoKey) : null;
+  return html`
 <!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} - Etalase</title>
+  <title>${title} - ${storeName}</title>
+  <meta name="description" content="${desc}">
+  <meta name="keywords" content="${keywords}">
+  <meta property="og:title" content="${title} - ${storeName}">
+  <meta property="og:description" content="${desc}">
+  <meta property="og:type" content="website">
+  ${logoUrl ? html`<meta property="og:image" content="${logoUrl}">` : ''}
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -28,16 +39,20 @@ export const Layout = ({ title, children, isAdmin = false }: { title: string; ch
   </style>
 </head>
 <body class="bg-zinc-50 dark:bg-black text-zinc-900 dark:text-white min-h-screen flex flex-col">
-  ${isAdmin ? AdminShell({ children }) : CustomerShell({ children })}
+  ${isAdmin ? AdminShell({ children, storeName }) : CustomerShell({ children, storeName, logoUrl, settings })}
   <script src="/client/app.js"></script>
 </body>
 </html>
 `;
+};
 
-const CustomerShell = ({ children }: { children: HtmlEscapedString | HtmlEscapedString[] }) => html`
+const CustomerShell = ({ children, storeName, logoUrl, settings }: { children: any; storeName: string; logoUrl: string | null; settings: Record<string, string> }) => html`
   <header class="sticky top-0 z-40 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md">
     <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <a href="/" class="text-xl font-bold tracking-tight text-primary-600">Etalase</a>
+      <a href="/" class="flex items-center gap-2 text-xl font-bold tracking-tight text-primary-600">
+        ${logoUrl ? html`<img src="${logoUrl}" alt="${storeName}" class="h-8 w-auto">` : ''}
+        ${storeName}
+      </a>
       <div class="hidden md:flex items-center gap-6 text-sm font-medium">
         <a href="/categories" class="hover:text-primary-600">Kategori</a>
         <a href="/track" class="hover:text-primary-600">Lacak Pesanan</a>
@@ -67,8 +82,8 @@ const CustomerShell = ({ children }: { children: HtmlEscapedString | HtmlEscaped
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
         <div>
-          <h4 class="font-semibold mb-4 text-gray-900 dark:text-white">Etalase</h4>
-          <p class="text-gray-600 dark:text-gray-400">Toko online terpercaya untuk kebutuhan Anda.</p>
+          <h4 class="font-semibold mb-4 text-gray-900 dark:text-white">${storeName}</h4>
+          <p class="text-gray-600 dark:text-gray-400">${settings['store_description'] || 'Toko online terpercaya untuk kebutuhan Anda.'}</p>
         </div>
         <div>
           <h4 class="font-semibold mb-4 text-gray-900 dark:text-white">Tautan</h4>
@@ -93,16 +108,16 @@ const CustomerShell = ({ children }: { children: HtmlEscapedString | HtmlEscaped
         </div>
       </div>
       <div class="mt-8 pt-8 border-t border-zinc-200 dark:border-zinc-800 text-center text-sm text-gray-500">
-        &copy; ${new Date().getFullYear()} Etalase. All rights reserved.
+        &copy; ${new Date().getFullYear()} ${storeName}. All rights reserved.
       </div>
     </div>
   </footer>
 `;
 
-const AdminShell = ({ children }: { children: HtmlEscapedString | HtmlEscapedString[] }) => html`
+const AdminShell = ({ children, storeName }: { children: any; storeName: string }) => html`
   <div class="flex min-h-screen">
     <aside class="hidden lg:flex lg:flex-col w-64 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-      <a href="/admin" class="text-xl font-bold mb-8 text-primary-600">Etalase Admin</a>
+      <a href="/admin" class="text-xl font-bold mb-8 text-primary-600">${storeName} Admin</a>
       <nav class="flex-1 space-y-1">
         <a href="/admin" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">Dashboard</a>
         <a href="/admin/products" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">Produk</a>
@@ -120,7 +135,7 @@ const AdminShell = ({ children }: { children: HtmlEscapedString | HtmlEscapedStr
         <button id="admin-sidebar-toggle" aria-label="Menu" class="p-2 mr-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 min-w-[40px] min-h-[40px] flex items-center justify-center">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <a href="/admin" class="text-xl font-bold text-primary-600">Etalase</a>
+        <a href="/admin" class="text-xl font-bold text-primary-600">${storeName}</a>
       </header>
       <main class="flex-1 p-4 md:p-8 overflow-auto bg-zinc-50 dark:bg-black">
         ${children}
@@ -131,7 +146,7 @@ const AdminShell = ({ children }: { children: HtmlEscapedString | HtmlEscapedStr
       <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('admin-sidebar-mobile').classList.add('hidden')"></div>
       <aside class="absolute inset-y-0 left-0 w-64 max-w-[80vw] bg-white dark:bg-zinc-900 p-4 overflow-y-auto shadow-xl">
         <div class="flex items-center justify-between mb-8">
-          <a href="/admin" class="text-xl font-bold text-primary-600" onclick="document.getElementById('admin-sidebar-mobile').classList.add('hidden')">Etalase Admin</a>
+          <a href="/admin" class="text-xl font-bold text-primary-600" onclick="document.getElementById('admin-sidebar-mobile').classList.add('hidden')">${storeName} Admin</a>
           <button id="admin-sidebar-close" aria-label="Tutup" class="p-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 min-w-[40px] min-h-[40px]">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
