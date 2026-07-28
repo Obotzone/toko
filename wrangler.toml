@@ -1,13 +1,13 @@
-name = "etalase"
+name = "toko"
 main = "src/index.tsx"
 compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "etalase-db"
-database_id = "9c0182d1-5e34-4464-afae-62e2c92198e1"
+database_name = "toko-db"
+database_id = "914969ac-63ce-4360-9c9b-093ea2fe45e1"
 
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "etalase-images"
+bucket_name = "toko-images"
