@@ -1,5 +1,4 @@
 import { html } from 'hono/html';
-import type { HtmlEscapedString } from 'hono/utils/html';
 import { ProductCard } from '../components/product-card';
 
 interface Product {
@@ -19,20 +18,28 @@ interface Category {
   imageUrl: string | null;
 }
 
-export const HomePage = ({ products, categories }: { products: Product[]; categories: Category[] }): any => html`
+export const HomePage = ({ products, categories, settings = {} }: { products: Product[]; categories: Category[]; settings?: Record<string, string> }): any => {
+  const heroTitle = settings['hero_title'] || 'Selamat Datang di Etalase';
+  const heroSubtitle = settings['hero_subtitle'] || 'Temukan produk terbaik untuk kebutuhan Anda. Mulai dari elektronik, pakaian, hingga buku berkualitas.';
+  const heroBtnText = settings['hero_button_text'] || 'Lihat Produk';
+  const heroBtnUrl = settings['hero_button_url'] || '/categories';
+  const heroBg = settings['hero_bg_color'] || 'from-primary-600/90 to-primary-600/30';
+  const heroImg = settings['hero_image'] || '';
+  return html`
   <div class="space-y-16">
     <section class="relative rounded-2xl overflow-hidden bg-primary-600 text-white p-8 md:p-16 min-h-[400px] flex items-center">
+      ${heroImg ? html`<div class="absolute inset-0"><img src="${heroImg.startsWith('http') ? heroImg : '/api/images/' + heroImg}" class="w-full h-full object-cover"></div>` : ''}
       <div class="relative z-10 max-w-2xl">
-        <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">Selamat Datang di Etalase</h1>
-        <p class="text-lg text-primary-100 mb-8">Temukan produk terbaik untuk kebutuhan Anda. Mulai dari elektronik, pakaian, hingga buku berkualitas.</p>
-        <a href="/categories" class="inline-block rounded-md bg-white text-primary-600 px-6 py-3 font-medium hover:bg-primary-50 transition-colors">
-          Lihat Produk
+        <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">${heroTitle}</h1>
+        <p class="text-lg text-primary-100 mb-8">${heroSubtitle}</p>
+        <a href="${heroBtnUrl}" class="inline-block rounded-md bg-white text-primary-600 px-6 py-3 font-medium hover:bg-primary-50 transition-colors">
+          ${heroBtnText}
         </a>
       </div>
-      <div class="absolute inset-0 bg-gradient-to-r from-primary-600/90 to-primary-600/30"></div>
-      <div class="absolute right-0 top-0 w-1/2 h-full opacity-20 pointer-events-none">
+      <div class="absolute inset-0 bg-gradient-to-r ${heroBg}"></div>
+      ${!heroImg ? html`<div class="absolute right-0 top-0 w-1/2 h-full opacity-20 pointer-events-none">
         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path fill="#fff" d="M45.1,-51.1C56.8,-40.8,63.4,-23.3,65.3,-5.3C67.2,12.7,64.5,31.2,54.2,44.2C43.9,57.2,26.1,64.7,6.5,66.1C-13.1,67.5,-34.4,62.8,-48.2,51.1C-62,39.4,-68.2,20.7,-66.9,2.5C-65.6,-15.8,-56.8,-33.7,-44.2,-44.5C-31.7,-55.3,-15.8,-59.1,1.7,-61.2C19.2,-63.3,33.4,-61.4,45.1,-51.1Z" transform="translate(100 100)" /></svg>
-      </div>
+      </div>` : ''}
     </section>
 
     <section>
@@ -83,4 +90,4 @@ export const HomePage = ({ products, categories }: { products: Product[]; catego
       </div>
     </section>
   </div>
-`;
+` };

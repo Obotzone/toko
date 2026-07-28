@@ -60,7 +60,7 @@ app.get('/', async (c) => {
   const featured = await db.select().from(s.products).where(and(eq(s.products.isActive, 1), eq(s.products.isFeatured, 1))).limit(8)
   const cats = await db.select().from(s.categories).orderBy(s.categories.sortOrder)
   const settings = await loadSettings(c)
-  return c.html(<Layout title="Beranda" settings={settings}><HomePage products={featured} categories={cats} /></Layout>)
+  return c.html(<Layout title="Beranda" settings={settings}><HomePage products={featured} categories={cats} settings={settings} /></Layout>)
 })
 
 // --- Product Detail ---
