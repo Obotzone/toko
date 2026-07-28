@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "etalase-db"
-database_id = "9a0800aa-14ef-4dc9-ae28-74e35266189b"
+database_id = "9c0182d1-5e34-4464-afae-62e2c92198e1"
 
 [[r2_buckets]]
 binding = "BUCKET"
