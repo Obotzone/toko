@@ -1,5 +1,4 @@
 import { html } from 'hono/html';
-import type { HtmlEscapedString } from 'hono/utils/html';
 
 interface Order {
   id: string;
@@ -9,7 +8,13 @@ interface Order {
   customerName: string;
 }
 
-export const SuccessPage = ({ order }: { order: Order }): any => html`
+export const SuccessPage = ({ order, settings = {} }: { order: Order; settings?: Record<string, string> }): any => {
+  const qrisKey = settings['qris_image'] || '';
+  const bankName = settings['bank_name'] || '';
+  const bankAccount = settings['bank_account'] || '';
+  const bankHolder = settings['bank_holder'] || '';
+  const showManualInfo = order.paymentMethod === 'manual' && order.status !== 'paid';
+  return html`
   <div class="max-w-2xl mx-auto text-center space-y-8">
     <div class="w-20 h-20 mx-auto rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-600">
       <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -38,8 +43,29 @@ export const SuccessPage = ({ order }: { order: Order }): any => html`
           <p class="font-semibold capitalize">${order.paymentMethod}</p>
         </div>
       </div>
+
+      ${showManualInfo ? html`
+        <div class="border-t border-zinc-200 dark:border-zinc-800 pt-6 mt-6 space-y-6">
+          <h3 class="font-semibold text-lg text-center">Petunjuk Pembayaran</h3>
+          ${bankName && bankAccount && bankHolder ? html`
+            <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-md text-sm space-y-2">
+              <p class="font-medium">Transfer ke rekening berikut:</p>
+              <p><span class="text-zinc-500">Bank:</span> ${bankName}</p>
+              <p><span class="text-zinc-500">Nomor:</span> <span class="font-semibold tracking-wider">${bankAccount}</span></p>
+              <p><span class="text-zinc-500">Atas Nama:</span> ${bankHolder}</p>
+              <p class="text-xs text-zinc-400 mt-2">Konfirmasi pembayaran akan diverifikasi oleh admin.</p>
+            </div>
+          ` : ''}
+          ${qrisKey ? html`
+            <div class="text-center">
+              <p class="text-sm font-medium mb-3">Atau scan QRIS berikut:</p>
+              <img src="/api/images/${qrisKey}" class="inline-block max-w-[250px] rounded-lg border border-zinc-200 dark:border-zinc-700">
+            </div>
+          ` : ''}
+        </div>
+      ` : ''}
       
-      <div id="payment-status" class="text-sm text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded-md">
+      <div id="payment-status" class="text-sm text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded-md mt-6">
         ${order.status === 'paid' 
           ? html`<p class="text-green-600 font-medium">Pembayaran telah dikonfirmasi.</p>`
           : html`
@@ -57,11 +83,11 @@ export const SuccessPage = ({ order }: { order: Order }): any => html`
     if ('${order.status}' !== 'paid') {
       setInterval(async () => {
         try {
-          const res = await fetch('/api/orders/${order.id}/status');
-          const data = await res.json();
+          var res = await fetch('/api/orders/${order.id}/status');
+          var data = await res.json();
           if (data.status === 'paid') location.reload();
         } catch (e) {}
       }, 5000);
     }
   </script>
-`;
+` };

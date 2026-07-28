@@ -155,7 +155,7 @@ app.get('/checkout/success', async (c) => {
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, orderId)).limit(1)
   if (!order) return c.redirect('/')
   const settings = await loadSettings(c)
-  return c.html(<Layout title="Pesanan Berhasil" settings={settings}><SuccessPage order={order} /></Layout>)
+  return c.html(<Layout title="Pesanan Berhasil" settings={settings}><SuccessPage order={order} settings={settings} /></Layout>)
 })
 
 // --- Track ---
@@ -311,8 +311,11 @@ app.post('/api/upload', async (c) => {
 
 // --- API: Serve Image ---
 app.get('/api/images/:key+', async (c) => {
-  const key = c.req.param('key') as string
-  const obj = await getImage(c.env.BUCKET, key)
+  let key = c.req.param('key') as string
+  let obj = await getImage(c.env.BUCKET, key)
+  if (!obj && !key.startsWith('products/')) {
+    obj = await getImage(c.env.BUCKET, `products/${key}`)
+  }
   if (!obj) return c.notFound()
   const headers = new Headers()
   headers.set('Content-Type', obj.httpMetadata?.contentType || 'image/jpeg')
