@@ -1,0 +1,80 @@
+import { html } from 'hono/html';
+import type { HtmlEscapedString } from 'hono/utils/html';
+
+interface Settings {
+  qrisImage?: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankHolder?: string;
+  mayarStatus?: string;
+}
+
+export const AdminSettingsPage = ({ settings, mayarConfigured }: { settings: Record<string, string>; mayarConfigured: boolean }): any => html`
+  <div class="space-y-8">
+    <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Pengaturan</h1>
+
+    <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
+      <h2 class="text-xl font-semibold">QRIS Pembayaran</h2>
+      <p class="text-sm text-zinc-500">Upload gambar QRIS dari GoBiz atau iSaku merchant app.</p>
+      <form id="qris-form" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100">
+        <button type="submit" class="mt-4 rounded-md bg-primary-600 px-4 py-2 text-white font-medium hover:bg-primary-700">Upload QRIS</button>
+      </form>
+      ${settings['qris_image'] ? html`
+        <div class="mt-4">
+          <p class="text-sm font-medium mb-2">Preview:</p>
+          <img src="/api/images/${settings['qris_image']}" class="max-w-xs rounded-lg border border-zinc-200">
+        </div>
+      ` : html`<p class="text-sm text-zinc-400 mt-2">Belum ada QRIS.</p>`}
+    </div>
+
+    <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
+      <h2 class="text-xl font-semibold">Informasi Transfer Bank</h2>
+      <form onsubmit="event.preventDefault(); saveSettings(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="bank_name" class="block text-sm font-medium mb-1">Nama Bank</label>
+          <input type="text" id="bank_name" name="bank_name" value="${settings['bank_name'] || ''}" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800">
+        </div>
+        <div>
+          <label for="bank_account" class="block text-sm font-medium mb-1">Nomor Rekening</label>
+          <input type="text" id="bank_account" name="bank_account" value="${settings['bank_account'] || ''}" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800">
+        </div>
+        <div class="md:col-span-2">
+          <label for="bank_holder" class="block text-sm font-medium mb-1">Atas Nama</label>
+          <input type="text" id="bank_holder" name="bank_holder" value="${settings['bank_holder'] || ''}" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800">
+        </div>
+        <div class="md:col-span-2">
+          <button type="submit" class="rounded-md bg-primary-600 px-4 py-2 text-white font-medium hover:bg-primary-700">Simpan</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-4">
+      <h2 class="text-xl font-semibold">Mayar API</h2>
+      <div class="flex items-center gap-2 text-sm">
+        <span class="w-3 h-3 rounded-full ${mayarConfigured ? 'bg-green-500' : 'bg-red-500'}"></span>
+        <span>${mayarConfigured ? 'Mayar API key terkonfigurasi' : 'Mayar API key tidak ditemukan'}</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    async function saveSettings(e) {
+      const form = e.target;
+      const data = Object.fromEntries(new FormData(form));
+      await adminPost('/api/admin/settings', data);
+    }
+    document.getElementById('qris-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+      const res = await fetch('/api/upload', { method: 'POST', body: data });
+      if (res.ok) {
+        const { key } = await res.json();
+        await adminPost('/api/admin/settings', { qris_image: key });
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Upload gagal');
+      }
+    });
+  </script>
+`;
