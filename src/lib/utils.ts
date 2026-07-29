@@ -7,7 +7,12 @@ export function slugify(s: string): string {
 }
 
 export function genId(): string {
-  return crypto.randomUUID();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const array = new Uint8Array(8);
+  crypto.getRandomValues(array);
+  let id = '';
+  for (let i = 0; i < 8; i++) id += chars[array[i] % chars.length];
+  return id;
 }
 
 export function now(): string {
