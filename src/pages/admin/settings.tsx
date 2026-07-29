@@ -51,13 +51,64 @@ export const AdminSettingsPage = ({ settings, mayarConfigured }: { settings: Rec
     </div>
 
     <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
-          <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
       <h2 class="text-xl font-semibold">Kode Diskon</h2>
-      <p class="text-sm text-zinc-500">Format: <code>KODE:persen</code> atau <code>KODE:nominal</code>. Pisahkan baris. Contoh: <code>WELCOME10:percent:10</code> atau <code>SALE50K:fixed:50000</code>.</p>
-      <form onsubmit="event.preventDefault(); saveSettings(event)">
-        <textarea id="discount_codes" name="discount_codes" rows="4" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800"></textarea>
-        <button type="submit" class="mt-2 rounded-md bg-primary-600 px-4 py-2 text-white text-sm font-medium hover:bg-primary-700">Simpan Diskon</button>
-      </form>
+
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input type="text" id="disc-code" placeholder="KODE" class="rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800">
+          <select id="disc-type" class="rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800">
+            <option value="percent">Persen (%)</option>
+            <option value="fixed">Nominal (Rp)</option>
+          </select>
+          <input type="number" id="disc-value" placeholder="Nilai" min="1" class="rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800">
+          <button onclick="addDiscount()" class="rounded-md bg-primary-600 px-4 py-2 text-white font-medium hover:bg-primary-700">Tambah</button>
+        </div>
+        <p class="text-xs text-zinc-500">Contoh: KODE=<b>WELCOME10</b>, Persen, Nilai=<b>10</b> → diskon 10%</p>
+      </div>
+
+      <div id="discount-list" class="space-y-2 mt-4">
+        ${Object.entries(settings).filter(function(e){return e[0].startsWith('discount_');}).length ? Object.entries(settings).filter(function(e){return e[0].startsWith('discount_');}).map(function(e){
+          var code = e[0].replace('discount_','');
+          var parts = e[1].split(':');
+          var label = parts[0] === 'percent' ? parts[1] + '%' : 'Rp ' + parseInt(parts[1]).toLocaleString('id-ID');
+          return html`<div class="flex items-center justify-between p-3 rounded-md border border-zinc-200 dark:border-zinc-700">
+            <div><span class="font-medium text-sm">${code}</span> <span class="text-xs text-zinc-500 ml-2">${label}</span></div>
+            <button onclick="deleteDiscount('${code}')" class="text-red-500 hover:text-red-700 text-sm">Hapus</button>
+          </div>`;
+        }) : html`<p class="text-sm text-zinc-400">Belum ada kode diskon.</p>`}
+      </div>
+        if (_discounts.length) {
+          var dl = document.getElementById('discount-list');
+          dl.innerHTML = _discounts.map(function(d) {
+            var label = d.type === 'percent' ? d.value + '%' : 'Rp ' + parseInt(d.value).toLocaleString('id-ID');
+            return '<div class="flex items-center justify-between p-3 rounded-md border border-zinc-200 dark:border-zinc-700">' +
+              '<div><span class="font-medium text-sm">' + d.code + '</span> <span class="text-xs text-zinc-500 ml-2">' + label + '</span></div>' +
+              '<button onclick="deleteDiscount(' + "'" + d.code + "'" + ')" class="text-red-500 hover:text-red-700 text-sm">Hapus</button>' +
+            '</div>';
+          }).join('');
+        } else {
+          document.getElementById('discount-list').innerHTML = '<p class="text-sm text-zinc-400">Belum ada kode diskon.</p>';
+        }
+        async function addDiscount() {
+          var code = document.getElementById('disc-code').value.trim().toUpperCase();
+          var type = document.getElementById('disc-type').value;
+          var val = document.getElementById('disc-value').value.trim();
+          if (!code || !val) { alert('Isi kode dan nilai diskon'); return; }
+          var obj = {};
+          obj['discount_' + code] = type + ':' + val;
+          await adminPost('/api/admin/settings', obj);
+        }
+        async function deleteDiscount(code) {
+          if (!confirm('Hapus kode ' + code + '?')) return;
+          var res = await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 'delete_discount_' + code: '1' })
+          });
+          if (res.ok) location.reload();
+          else { var e = await res.json(); alert(e.error); }
+        }
+      </script>
     </div>
 
     <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">

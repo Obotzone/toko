@@ -217,7 +217,21 @@ app.post('/api/checkout', async (c) => {
 
   const shipping = hasPhysical ? SHIPPING_COST : 0
   const tax = calcTax(subtotal)
-  const total = subtotal + shipping + tax
+  let discountAmount = 0
+  let discountLabel = ''
+  const discountCode = body.discountCode || ''
+  if (discountCode) {
+    const dcKey = `discount_${discountCode.toUpperCase()}`
+    const [discSetting] = await db.select().from(s.storeSettings).where(eq(s.storeSettings.key, dcKey)).limit(1)
+    if (discSetting && discSetting.value) {
+      const parts = discSetting.value.split(':')
+      const dType = (parts[0] || '').toLowerCase()
+      const dVal = parseInt(parts[1])
+      if (dType === 'percent' && dVal > 0 && dVal <= 100) { discountAmount = Math.round(subtotal * dVal / 100); discountLabel = dVal + '%' }
+      if (dType === 'fixed' && dVal > 0) { discountAmount = dVal; discountLabel = 'Rp ' + dVal.toLocaleString('id-ID') }
+    }
+  }
+  const total = Math.max(0, subtotal + shipping + tax - discountAmount)
 
   const orderId = genId()
 
@@ -300,21 +314,16 @@ app.post('/api/checkout/validate-discount', async (c) => {
   const code = (body.code || '').toUpperCase()
   if (!code) return c.json({ valid: false, error: 'Kode tidak boleh kosong' })
   const db = getDb(c.env)
-  const [setting] = await db.select().from(s.storeSettings).where(eq(s.storeSettings.key, 'discount_codes')).limit(1)
+  const [setting] = await db.select().from(s.storeSettings).where(eq(s.storeSettings.key, `discount_${code}`)).limit(1)
   if (!setting || !setting.value) return c.json({ valid: false, error: 'Kode diskon tidak ditemukan' })
-  const lines = setting.value.split('\n')
-  for (const line of lines) {
-    const parts = line.trim().split(':')
-    if (parts.length >= 3 && parts[0].toUpperCase() === code) {
-      const type = parts[1].toLowerCase()
-      const value = parseInt(parts[2])
-      if (type === 'percent' && value > 0 && value <= 100) {
-        return c.json({ valid: true, type: 'percent', value: value, label: value + '%' })
-      }
-      if (type === 'fixed' && value > 0) {
-        return c.json({ valid: true, type: 'fixed', value: value, label: 'Rp ' + value.toLocaleString('id-ID') })
-      }
-    }
+  const parts = setting.value.split(':')
+  const type = (parts[0] || '').toLowerCase()
+  const value = parseInt(parts[1])
+  if (type === 'percent' && value > 0 && value <= 100) {
+    return c.json({ valid: true, type: 'percent', value: value, label: value + '%' })
+  }
+  if (type === 'fixed' && value > 0) {
+    return c.json({ valid: true, type: 'fixed', value: value, label: 'Rp ' + value.toLocaleString('id-ID') })
   }
   return c.json({ valid: false, error: 'Kode diskon tidak valid' })
 })
@@ -644,7 +653,11 @@ app.post('/api/admin/settings', adminRoute(async (c) => {
   const db = getDb(c.env)
   const body = await c.req.json()
   for (const [key, value] of Object.entries(body)) {
-    await db.insert(s.storeSettings).values({ key, value: String(value) }).onConflictDoUpdate({ target: s.storeSettings.key, set: { value: String(value) } })
+    if (key.startsWith('delete_')) {
+      await db.delete(s.storeSettings).where(eq(s.storeSettings.key, key.replace('delete_', '')))
+    } else {
+      await db.insert(s.storeSettings).values({ key, value: String(value) }).onConflictDoUpdate({ target: s.storeSettings.key, set: { value: String(value) } })
+    }
   }
   return c.json({ ok: true })
 }))
