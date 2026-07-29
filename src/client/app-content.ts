@@ -151,6 +151,7 @@ document.addEventListener('submit', async function(e) {
   var form = e.target.closest('#checkout-form');
   if (!form) return;
   e.preventDefault();
+  populateCheckoutInputs();
   var btn = form.querySelector('button[type="submit"]');
   btn.disabled = true;
   btn.textContent = 'Memproses...';
@@ -226,11 +227,7 @@ function recalcTotals() {
   var taxEl = document.getElementById('tax-amount');
   var totalEl = document.getElementById('total-amount');
   if (!shippingEl || !taxEl || !totalEl) return;
-  populateCheckoutInputs();
-  var itemsInput = document.querySelector('[name="items"]');
-  if (!itemsInput) return;
-  var items;
-  try { items = JSON.parse(itemsInput.value); } catch(ex) { items = []; }
+  var items = Cart.items;
   var subtotal = items.reduce(function(s, i) { return s + i.price * i.qty; }, 0);
   var hasPhysical = items.some(function(i) { return i.type === 'physical'; });
   var shipping = hasPhysical ? 15000 : 0;
@@ -280,7 +277,6 @@ document.addEventListener('DOMContentLoaded', function() {
   Cart.render();
   recalcTotals();
   renderCheckoutCart();
-  populateCheckoutInputs();
 });
 
 // Discount code handler
