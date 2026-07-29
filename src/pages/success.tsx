@@ -68,7 +68,13 @@ export const SuccessPage = ({ order, items = [], settings = {} }: { order: Order
         </div>
       ` : ''}
       
-      ${order.status === "paid" && items.length ? html`        <div class="border-t border-zinc-200 dark:border-zinc-800 pt-6 mt-6">          <h3 class="font-semibold text-lg mb-4">Download Produk Digital</h3>          <div class="space-y-3">            ${items.filter(i => i.productId).map(i => html`              <a href="/api/download/${order.id}/${i.id}?email=${order.customerEmail}" class="flex items-center justify-between p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">                <span class="font-medium text-sm">${i.productName}</span>                <span class="text-primary-600 text-sm font-semibold">Download &rarr;</span>              </a>            `)}          </div>        </div>      ` : ""}            <div id="payment-status" class="text-sm text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded-md mt-6">
+      ${order.status === "paid" && items.length ? html`        <div class="border-t border-zinc-200 dark:border-zinc-800 pt-6 mt-6">          <h3 class="font-semibold text-lg mb-4">Download Produk Digital</h3>          <div class="space-y-3">            ${items.filter(i => i.productId).map(i => html`              <a href="/api/download/${order.id}/${i.id}?email=${order.customerEmail}" class="flex items-center justify-between p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">                <span class="font-medium text-sm">${i.productName}</span>                <span class="text-primary-600 text-sm font-semibold">Download &rarr;</span>              </a>            `)}          </div>        </div>      ` : ""}                  ${order.status === "paid" ? html`
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md p-4 text-sm">
+          <p class="font-semibold text-amber-800 dark:text-amber-200 mb-1">⚠ Simpan Nomor Pesanan</p>
+          <p class="text-amber-700 dark:text-amber-300">Catat nomor <strong>${order.id}</strong> untuk akses nanti. Gunakan <a href="/track" class="underline font-medium">Lacak Pesanan</a> dengan nomor ini + email Anda.</p>
+        </div>
+      ` : ""}
+      <div id="payment-status" class="text-sm text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded-md mt-6">
         ${order.status === 'paid' 
           ? html`<p class="text-green-600 font-medium">Pembayaran telah dikonfirmasi.</p>`
           : html`
