@@ -87,6 +87,11 @@ export const SuccessPage = ({ order, items = [], settings = {} }: { order: Order
       <a href="/" class="rounded-md bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 px-6 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-700">Lanjut Belanja</a>
       <a href="/track" class="rounded-md bg-primary-600 px-6 py-2 text-sm font-medium text-white hover:bg-primary-700">Lacak Pesanan</a>
     </div>
+    ${settings && settings.whatsapp_number ? html`
+    <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-center">
+      <p class="text-blue-800 dark:text-blue-200">${String.fromCharCode(128222)} Ada kendala? Hubungi <a href="https://wa.me/${settings.whatsapp_number}" target="_blank" class="font-medium underline">WhatsApp Admin</a></p>
+    </div>
+    ` : ''}
   </div>
   <script>
     if ('${order.status}' !== 'paid') {

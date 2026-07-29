@@ -73,9 +73,13 @@ export const CheckoutForm = ({ mayarEnabled = true, settings = {} }: { mayarEnab
 
     <div class="p-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
       <label class="block text-sm font-medium mb-2">Punya Kode Diskon?</label>
-      <div class="flex gap-2">
+      <div class="flex gap-2" id="discount-input-group">
         <input type="text" id="discount-input" placeholder="Masukkan kode" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm">
         <button type="button" id="discount-btn" class="rounded-md bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700">Gunakan</button>
+      </div>
+      <div id="discount-applied" class="flex items-center justify-between gap-2" style="display:none">
+        <span id="discount-msg" class="text-xs text-green-600"></span>
+        <button type="button" onclick="removeDiscount()" class="text-xs text-red-500 hover:text-red-700">Hapus</button>
       </div>
       <input type="hidden" id="discount-code" name="discountCode" value="">
       <p id="discount-msg" class="text-xs mt-1 text-zinc-500"></p>

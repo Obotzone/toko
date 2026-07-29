@@ -272,6 +272,60 @@ document.addEventListener('DOMContentLoaded', function() {
   populateCheckoutInputs();
 });
 
+// Discount code handler
+if (location.pathname === '/checkout') {
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('#discount-btn');
+    if (!btn) return;
+    handleDiscountCode();
+  });
+}
+
+async function handleDiscountCode() {
+  var inp = document.getElementById('discount-input');
+  var msg = document.getElementById('discount-msg');
+  if (!inp || !msg) return;
+  var code = inp.value.trim();
+  if (!code) { msg.textContent = 'Masukkan kode diskon'; return; }
+  msg.textContent = 'Memeriksa...';
+  try {
+    var r = await fetch('/api/checkout/validate-discount', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    });
+    var d = await r.json();
+    if (d.valid) {
+      document.getElementById('discount-code').value = code;
+      var da = document.getElementById('discount-amount');
+      if (da) { da.dataset.type = d.type; da.dataset.val = d.value; da.dataset.productId = d.productId || ''; }
+      document.getElementById('discount-row').style.display = '';
+      document.getElementById('discount-applied').style.display = '';
+      document.getElementById('discount-input').style.display = 'none';
+      document.getElementById('discount-btn').style.display = 'none';
+      msg.innerHTML = '<span class="text-green-600">Diskon ' + d.label + ' diterapkan!</span>';
+      recalcTotals();
+    } else {
+      document.getElementById('discount-code').value = '';
+      msg.innerHTML = '<span class="text-red-600">' + d.error + '</span>';
+    }
+  } catch(e) {
+    msg.textContent = 'Gagal';
+  }
+}
+
+function removeDiscount() {
+  document.getElementById('discount-code').value = '';
+  document.getElementById('discount-row').style.display = 'none';
+  document.getElementById('discount-applied').style.display = 'none';
+  document.getElementById('discount-input').style.display = '';
+  document.getElementById('discount-btn').style.display = '';
+  document.getElementById('discount-msg').textContent = '';
+  var msg = document.getElementById('discount-msg');
+  if (msg) msg.textContent = 'Kode diskon dihapus';
+  recalcTotals();
+}
+
 if (localStorage.getItem('dark') === 'true' || (!localStorage.getItem('dark') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
   document.documentElement.classList.add('dark');
   localStorage.setItem('dark', 'true');
