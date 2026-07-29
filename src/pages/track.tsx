@@ -2,15 +2,18 @@ import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 import { idr } from '../lib/utils';
 
+interface Item { id: string; productId: string | null; productName: string; quantity: number; productPrice: number; }
+
 interface Order {
   id: string;
   status: string;
   totalAmount: number;
   paymentMethod: string;
   customerName: string;
+  customerEmail: string;
   shippingAddress: string | null;
   createdAt: string | null;
-  items: { productName: string; quantity: number; productPrice: number }[];
+  items: Item[];
 }
 
 export const TrackPage = ({ order }: { order?: Order }): any => html`
@@ -48,6 +51,20 @@ export const TrackPage = ({ order }: { order?: Order }): any => html`
               <span class="font-medium">${idr(item.productPrice * item.quantity)}</span>
             </div>
           `)}
+
+          ${order.status === "paid" && order.items.some(function(i){return i.productId;}) ? html`
+            <div class="border-t border-zinc-200 dark:border-zinc-800 pt-4 mt-4">
+              <h3 class="font-semibold text-sm mb-3">Download Produk Digital</h3>
+              <div class="space-y-2">
+                ${order.items.filter(function(i){return i.productId;}).map(function(i){return html`
+                  <a href="/api/download/${order.id}/${i.id}?email=${order.customerEmail}" class="flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                    <span class="text-sm font-medium">${i.productName}</span>
+                    <span class="text-primary-600 text-xs font-semibold">Download &rarr;</span>
+                  </a>
+                `;})}
+              </div>
+            </div>
+          ` : ""}
           <div class="flex justify-between font-semibold border-t border-zinc-200 dark:border-zinc-800 pt-2">
             <span>Total</span>
             <span>${idr(order.totalAmount)}</span>
