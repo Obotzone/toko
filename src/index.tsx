@@ -155,8 +155,9 @@ app.get('/checkout/success', async (c) => {
   if (!orderId) return c.redirect('/')
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, orderId)).limit(1)
   if (!order) return c.redirect('/')
+  const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, orderId))
   const settings = await loadSettings(c)
-  return c.html(<Layout title="Pesanan Berhasil" settings={settings}><SuccessPage order={order} settings={settings} /></Layout>)
+  return c.html(<Layout title="Pesanan Berhasil" settings={settings}><SuccessPage order={order} items={items} settings={settings} /></Layout>)
 })
 
 // --- Track ---
