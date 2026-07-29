@@ -63,6 +63,11 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
           <input type="text" id="p-image" name="imageUrl" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="https://...">
         </div>
         <div class="md:col-span-2">
+          <label for="p-file" class="block text-sm font-medium mb-1">File Produk Digital <span class="text-xs text-zinc-400">(untuk tipe Digital)</span></label>
+          <input type="file" id="p-file" accept=".pdf,.zip,.epub,.mp3,.mp4,.jpg,.png" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100">
+          <p class="text-xs text-zinc-500 mt-1">Upload file digital. Customer download setelah bayar.</p>
+        </div>
+        <div class="md:col-span-2">
           <label for="p-image-file" class="block text-sm font-medium mb-1">Upload Gambar ke R2</label>
           <input type="file" id="p-image-file" accept="image/*" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100">
           <p class="text-xs text-zinc-500 mt-1">Maks 5MB. Akan mengganti URL gambar di atas jika diisi.</p>
@@ -261,6 +266,14 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
           if (err.error) { alert(err.error); return; }
         }
       }
+      var fileP = document.getElementById('p-file');
+      if (fileP && fileP.files && fileP.files[0]) {
+        var fd = new FormData();
+        fd.append('file', fileP.files[0]);
+        var r = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (r.ok) data.fileKey = (await r.json()).key;
+        else { var e = await r.json(); if (e.error) { alert(e.error); return; } }
+      }
       await adminPost('/api/admin/products', data);
     }
 
@@ -283,6 +296,14 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
           var err = await uploadRes.json();
           if (err.error) { alert(err.error); return; }
         }
+      }
+      var fileE = document.getElementById('e-file');
+      if (fileE && fileE.files && fileE.files[0]) {
+        var fd = new FormData();
+        fd.append('file', fileE.files[0]);
+        var r = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (r.ok) data.fileKey = (await r.json()).key;
+        else { var e = await r.json(); if (e.error) { alert(e.error); return; } }
       }
       await adminPut('/api/admin/products/' + id, data);
     }
