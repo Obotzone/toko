@@ -99,7 +99,7 @@ export const AdminSettingsPage = ({ settings, products = [], mayarConfigured }: 
           var res = await fetch('/api/admin/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 'delete_discount_' + code: '1' })
+            body: JSON.stringify({ ['delete_discount_' + code]: '1' })
           });
           if (res.ok) location.reload();
           else { var e = await res.json(); alert(e.error); }
