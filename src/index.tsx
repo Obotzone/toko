@@ -227,8 +227,16 @@ app.post('/api/checkout', async (c) => {
       const parts = discSetting.value.split(':')
       const dType = (parts[0] || '').toLowerCase()
       const dVal = parseInt(parts[1])
-      if (dType === 'percent' && dVal > 0 && dVal <= 100) { discountAmount = Math.round(subtotal * dVal / 100); discountLabel = dVal + '%' }
-      if (dType === 'fixed' && dVal > 0) { discountAmount = dVal; discountLabel = 'Rp ' + dVal.toLocaleString('id-ID') }
+      const dProd = parts[2] || ''
+      let discBase = subtotal
+      if (dProd) {
+        discBase = 0
+        for (const dbItem of dbItems) {
+          if (dbItem.productId === dProd) discBase += dbItem.productPrice * dbItem.quantity
+        }
+      }
+      if (dType === 'percent' && dVal > 0 && dVal <= 100) { discountAmount = Math.round(discBase * dVal / 100); discountLabel = dVal + '%' }
+      if (dType === 'fixed' && dVal > 0) { discountAmount = Math.min(dVal, discBase); discountLabel = 'Rp ' + dVal.toLocaleString('id-ID') }
     }
   }
   const total = Math.max(0, subtotal + shipping + tax - discountAmount)
@@ -319,11 +327,12 @@ app.post('/api/checkout/validate-discount', async (c) => {
   const parts = setting.value.split(':')
   const type = (parts[0] || '').toLowerCase()
   const value = parseInt(parts[1])
+  const productId = parts[2] || ''
   if (type === 'percent' && value > 0 && value <= 100) {
-    return c.json({ valid: true, type: 'percent', value: value, label: value + '%' })
+    return c.json({ valid: true, type: 'percent', value: value, label: value + '%', productId: productId })
   }
   if (type === 'fixed' && value > 0) {
-    return c.json({ valid: true, type: 'fixed', value: value, label: 'Rp ' + value.toLocaleString('id-ID') })
+    return c.json({ valid: true, type: 'fixed', value: value, label: 'Rp ' + value.toLocaleString('id-ID'), productId: productId })
   }
   return c.json({ valid: false, error: 'Kode diskon tidak valid' })
 })
@@ -644,8 +653,9 @@ app.get('/admin/settings', adminRoute(async (c) => {
   const rows = await db.select().from(s.storeSettings)
   const settings: Record<string, string> = {}
   for (const r of rows) settings[r.key] = r.value || ''
+  const products = await db.select({ id: s.products.id, name: s.products.name }).from(s.products).where(eq(s.products.isActive, 1)).orderBy(s.products.name)
   return c.html(<Layout title="Pengaturan" isAdmin={true} settings={settings}>
-    <AdminSettingsPage settings={settings} mayarConfigured={!!c.env.MAYAR_API_KEY} />
+    <AdminSettingsPage settings={settings} products={products} mayarConfigured={!!c.env.MAYAR_API_KEY} />
   </Layout>)
 }))
 

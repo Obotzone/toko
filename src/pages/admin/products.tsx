@@ -200,7 +200,7 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
           <div class="md:col-span-2">
             <label for="e-file" class="block text-sm font-medium mb-1">File Produk Digital <span class="text-xs text-zinc-400">(hanya untuk tipe Digital)</span></label>
             <input type="file" id="e-file" accept=".pdf,.zip,.epub,.mp3,.mp4,.jpg,.png,.docx,.xlsx,.pptx" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100">
-            <p class="text-xs text-zinc-500 mt-1">Upload file digital. Customer download setelah bayar.</p>
+            <p class="text-xs text-zinc-500 mt-1" id="e-file-status">Upload file digital. Customer download setelah bayar.</p>
           </div>
           <div class="md:col-span-2">
             <label for="e-desc" class="block text-sm font-medium mb-1">Deskripsi</label>
