@@ -70,7 +70,7 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
         <div class="md:col-span-2">
           <label for="p-image-file" class="block text-sm font-medium mb-1">Upload Gambar ke R2</label>
           <input type="file" id="p-image-file" accept="image/*" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100">
-          <p class="text-xs text-zinc-500 mt-1">Maks 5MB. Akan mengganti URL gambar di atas jika diisi.</p>
+          <p class="text-xs text-zinc-500 mt-1">Maks 5MB untuk gambar. File digital maks 50MB.</p>
         </div>
         <div class="md:col-span-2">
           <label for="p-desc" class="block text-sm font-medium mb-1">Deskripsi</label>

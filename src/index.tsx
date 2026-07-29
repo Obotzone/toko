@@ -305,8 +305,8 @@ app.get('/api/orders/:id/status', async (c) => {
 app.post('/api/upload', async (c) => {
   const fd = await c.req.formData()
   const file = fd.get('file') as File
-  if (!file || !file.type.startsWith('image/')) return c.json({ error: 'File harus gambar' }, 400)
-  if (file.size > 5 * 1024 * 1024) return c.json({ error: 'File maksimal 5MB' }, 400)
+  if (!file) return c.json({ error: 'File diperlukan' }, 400)
+  if (file.size > 50 * 1024 * 1024) return c.json({ error: 'File maksimal 50MB' }, 400)
 
   const name = `${genId()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '')}`
   const ab = await file.arrayBuffer()
