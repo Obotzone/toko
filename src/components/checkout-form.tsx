@@ -59,13 +59,17 @@ export const CheckoutForm = ({ mayarEnabled = true, settings = {} }: { mayarEnab
         <span class="text-zinc-600 dark:text-zinc-400">Pajak (PPN 11%)</span>
         <span id="tax-amount">Rp 0</span>
       </div>
+      <div class="flex justify-between mb-2 text-sm" id="discount-row" style="display:none">
+        <span class="text-green-600 dark:text-green-400">Diskon</span>
+        <span id="discount-amount" class="text-green-600 dark:text-green-400">-Rp 0</span>
+      </div>
       <div class="flex justify-between font-semibold text-lg border-t border-zinc-200 dark:border-zinc-800 mt-2 pt-2">
         <span>Total</span>
         <span id="total-amount">Rp 0</span>
       </div>
     </div>
 
-        ${settings && settings.whatsapp_number ? html`
+    ${settings && settings.whatsapp_number ? html`
       <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm">
         <p class="text-blue-800 dark:text-blue-200"> Ada kendala? Hubungi <a href="https://wa.me/${settings.whatsapp_number}" target="_blank" class="font-medium underline">WhatsApp Admin</a></p>
       </div>
@@ -78,7 +82,7 @@ export const CheckoutForm = ({ mayarEnabled = true, settings = {} }: { mayarEnab
         <button type="button" id="discount-btn" class="rounded-md bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700">Gunakan</button>
       </div>
       <div id="discount-applied" class="flex items-center justify-between gap-2" style="display:none">
-        <span id="discount-msg" class="text-xs text-green-600"></span>
+        <span id="discount-status" class="text-xs text-green-600"></span>
         <button type="button" onclick="removeDiscount()" class="text-xs text-red-500 hover:text-red-700">Hapus</button>
       </div>
       <input type="hidden" id="discount-code" name="discountCode" value="">

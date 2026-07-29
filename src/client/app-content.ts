@@ -226,6 +226,7 @@ function recalcTotals() {
   var taxEl = document.getElementById('tax-amount');
   var totalEl = document.getElementById('total-amount');
   if (!shippingEl || !taxEl || !totalEl) return;
+  populateCheckoutInputs();
   var itemsInput = document.querySelector('[name="items"]');
   if (!itemsInput) return;
   var items;
@@ -234,7 +235,17 @@ function recalcTotals() {
   var hasPhysical = items.some(function(i) { return i.type === 'physical'; });
   var shipping = hasPhysical ? 15000 : 0;
   var tax = Math.round(subtotal * 0.11);
-  var total = subtotal + shipping + tax;
+  var discount = 0;
+  var da = document.getElementById('discount-amount');
+  var dc = document.getElementById('discount-code');
+  if (da && dc && dc.value) {
+    var dType = da.dataset.type;
+    var dVal = parseInt(da.dataset.val || '0');
+    if (dType === 'percent') discount = Math.round(subtotal * dVal / 100);
+    else if (dType === 'fixed') discount = Math.min(dVal, subtotal);
+    da.textContent = '-Rp ' + discount.toLocaleString('id-ID');
+  }
+  var total = Math.max(0, subtotal + shipping + tax - discount);
   if (subtotalEl) subtotalEl.textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
   shippingEl.textContent = 'Rp ' + shipping.toLocaleString('id-ID');
   taxEl.textContent = 'Rp ' + tax.toLocaleString('id-ID');
@@ -301,9 +312,9 @@ async function handleDiscountCode() {
       if (da) { da.dataset.type = d.type; da.dataset.val = d.value; da.dataset.productId = d.productId || ''; }
       document.getElementById('discount-row').style.display = '';
       document.getElementById('discount-applied').style.display = '';
-      document.getElementById('discount-input').style.display = 'none';
-      document.getElementById('discount-btn').style.display = 'none';
-      msg.innerHTML = '<span class="text-green-600">Diskon ' + d.label + ' diterapkan!</span>';
+      document.getElementById('discount-input-group').style.display = 'none';
+      var ds = document.getElementById('discount-status');
+      if (ds) ds.innerHTML = 'Diskon ' + d.label + ' diterapkan!';
       recalcTotals();
     } else {
       document.getElementById('discount-code').value = '';
@@ -318,11 +329,9 @@ function removeDiscount() {
   document.getElementById('discount-code').value = '';
   document.getElementById('discount-row').style.display = 'none';
   document.getElementById('discount-applied').style.display = 'none';
-  document.getElementById('discount-input').style.display = '';
-  document.getElementById('discount-btn').style.display = '';
-  document.getElementById('discount-msg').textContent = '';
+  document.getElementById('discount-input-group').style.display = 'flex';
   var msg = document.getElementById('discount-msg');
-  if (msg) msg.textContent = 'Kode diskon dihapus';
+  if (msg) msg.textContent = '';
   recalcTotals();
 }
 
