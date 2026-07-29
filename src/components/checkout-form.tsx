@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 
-export const CheckoutForm = ({ mayarEnabled = true }: { mayarEnabled?: boolean }): any => html`
+export const CheckoutForm = ({ mayarEnabled = true }: { mayarEnabled?: boolean; settings?: Record<string, string> }): any => html`
   <form id="checkout-form" class="space-y-6">
     <input type="hidden" id="checkout-items-input" name="items" value="[]">
 

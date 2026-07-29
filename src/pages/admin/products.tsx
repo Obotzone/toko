@@ -10,6 +10,7 @@ interface Product {
   stock: number;
   imageUrl: string | null;
   fileKey: string | null;
+  originalPrice: number | null;
   type: string;
   isActive: number;
   isFeatured: number;
@@ -44,7 +45,11 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
           </select>
         </div>
         <div>
-          <label for="p-price" class="block text-sm font-medium mb-1">Harga (Rp)</label>
+          <label for="p-original" class="block text-sm font-medium mb-1">Harga Asli (Rp)</label>
+          <input type="number" id="p-original" name="originalPrice" min="0" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="Kosongi jika tidak diskon">
+        </div>
+        <div>
+<label for="p-price" class="block text-sm font-medium mb-1">Harga (Rp)</label>
           <input type="number" id="p-price" name="price" required min="0" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800">
         </div>
         <div>
@@ -169,7 +174,11 @@ export const AdminProductsPage = ({ products, categories, page, totalPages }: { 
             </select>
           </div>
           <div>
-            <label for="e-price" class="block text-sm font-medium mb-1">Harga (Rp)</label>
+            <label for="e-original" class="block text-sm font-medium mb-1">Harga Asli (Rp)</label>
+            <input type="number" id="e-original" name="originalPrice" min="0" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="Kosongi jika tidak diskon">
+          </div>
+          <div>
+<label for="e-price" class="block text-sm font-medium mb-1">Harga (Rp)</label>
             <input type="number" id="e-price" name="price" required min="0" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800">
           </div>
           <div>

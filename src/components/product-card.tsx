@@ -2,7 +2,7 @@ import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 import { idr } from '../lib/utils';
 
-interface ProductCardProps {
+interface ProductCardProps { originalPrice?: number | null;
   id: string;
   name: string;
   slug: string;
@@ -12,7 +12,7 @@ interface ProductCardProps {
   stock: number;
 }
 
-export const ProductCard = ({ id, name, slug, price, imageUrl, type, stock }: ProductCardProps): any => html`
+export const ProductCard = ({ id, name, slug, price, originalPrice, imageUrl, type, stock }: ProductCardProps): any => html`
   <a href="/products/${slug}" class="group block rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
     <div class="aspect-square bg-zinc-100 dark:bg-zinc-800 overflow-hidden relative">
       ${imageUrl 

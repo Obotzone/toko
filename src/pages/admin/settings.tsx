@@ -36,6 +36,31 @@ export const AdminSettingsPage = ({ settings, mayarConfigured }: { settings: Rec
     </div>
 
     <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
+    <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
+      <h2 class="text-xl font-semibold">Kontak WhatsApp</h2>
+      <form onsubmit="event.preventDefault(); saveSettings(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label for="whatsapp_number" class="block text-sm font-medium mb-1">Nomor WhatsApp</label>
+          <input type="text" id="whatsapp_number" name="whatsapp_number" value="" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="6281234567890">
+          <p class="text-xs text-zinc-500 mt-1">Ditampilkan di halaman checkout untuk bantuan.</p>
+        </div>
+        <div class="md:col-span-2">
+          <button type="submit" class="rounded-md bg-primary-600 px-4 py-2 text-white font-medium hover:bg-primary-700">Simpan</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
+          <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
+      <h2 class="text-xl font-semibold">Kode Diskon</h2>
+      <p class="text-sm text-zinc-500">Format: <code>KODE:persen</code> atau <code>KODE:nominal</code>. Pisahkan baris. Contoh: <code>WELCOME10:percent:10</code> atau <code>SALE50K:fixed:50000</code>.</p>
+      <form onsubmit="event.preventDefault(); saveSettings(event)">
+        <textarea id="discount_codes" name="discount_codes" rows="4" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800"></textarea>
+        <button type="submit" class="mt-2 rounded-md bg-primary-600 px-4 py-2 text-white text-sm font-medium hover:bg-primary-700">Simpan Diskon</button>
+      </form>
+    </div>
+
+    <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
       <h2 class="text-xl font-semibold">Logo Toko</h2>
       <p class="text-sm text-zinc-500">Upload logo toko. Ukuran optimal: 200x200px.</p>
       <form id="logo-form" enctype="multipart/form-data">

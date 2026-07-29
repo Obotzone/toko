@@ -8,6 +8,7 @@ interface Product {
   name: string;
   slug: string;
   price: number;
+  originalPrice?: number | null;
   description: string | null;
   imageUrl: string | null;
   type: string;

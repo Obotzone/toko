@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import { CheckoutForm } from '../components/checkout-form';
 
-export const CheckoutPage = ({ mayarEnabled = true }: { mayarEnabled?: boolean }): any => html`
+export const CheckoutPage = ({ mayarEnabled = true }: { mayarEnabled?: boolean; settings?: Record<string, string> }): any => html`
   <div class="max-w-3xl mx-auto">
     <a href="/" class="text-sm text-primary-600 hover:text-primary-500 mb-6 inline-block">&larr; Lanjut Belanja</a>
     <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-8">Checkout</h1>

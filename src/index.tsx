@@ -145,7 +145,7 @@ app.get('/search', async (c) => {
 app.get('/checkout', async (c) => {
   const settings = await loadSettings(c)
   const mayarEnabled = settings['mayar_enabled'] !== '0'
-  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage mayarEnabled={mayarEnabled} /></Layout>)
+  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage mayarEnabled={mayarEnabled} settings={settings} /></Layout>)
 })
 
 // --- Success ---
@@ -291,6 +291,32 @@ app.post('/api/webhooks/mayar', async (c) => {
     await db.update(s.orders).set({ status: 'paid', updatedAt: now() }).where(eq(s.orders.id, orderId))
   }
   return c.json({ ok: true })
+})
+
+
+// --- API: Validate Discount ---
+app.post('/api/checkout/validate-discount', async (c) => {
+  const body = await c.req.json()
+  const code = (body.code || '').toUpperCase()
+  if (!code) return c.json({ valid: false, error: 'Kode tidak boleh kosong' })
+  const db = getDb(c.env)
+  const [setting] = await db.select().from(s.storeSettings).where(eq(s.storeSettings.key, 'discount_codes')).limit(1)
+  if (!setting || !setting.value) return c.json({ valid: false, error: 'Kode diskon tidak ditemukan' })
+  const lines = setting.value.split('\n')
+  for (const line of lines) {
+    const parts = line.trim().split(':')
+    if (parts.length >= 3 && parts[0].toUpperCase() === code) {
+      const type = parts[1].toLowerCase()
+      const value = parseInt(parts[2])
+      if (type === 'percent' && value > 0 && value <= 100) {
+        return c.json({ valid: true, type: 'percent', value: value, label: value + '%' })
+      }
+      if (type === 'fixed' && value > 0) {
+        return c.json({ valid: true, type: 'fixed', value: value, label: 'Rp ' + value.toLocaleString('id-ID') })
+      }
+    }
+  }
+  return c.json({ valid: false, error: 'Kode diskon tidak valid' })
 })
 
 // --- API: Order Status Polling ---

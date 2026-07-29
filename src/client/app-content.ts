@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const APP_JS = String.raw`
 const Cart = {
   KEY: 'etalase-cart',

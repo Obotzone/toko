@@ -17,6 +17,7 @@ export const products = sqliteTable('products', {
   slug: text('slug').notNull().unique(),
   description: text('description'),
   price: integer('price').notNull(),
+  originalPrice: integer('original_price'),
   stock: integer('stock').notNull().default(0),
   imageUrl: text('image_url'),
   fileKey: text('file_key'),
