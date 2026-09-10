@@ -5,6 +5,7 @@ import * as s from './schema'
 import { idr, slugify, genId, now, SHIPPING_COST, TAX_RATE, calcShipping, calcTax, getShippingCost, getTaxRate } from './lib/utils'
 import { createSessionToken, verifySessionToken, readSessionCookie, ADMIN_COOKIE } from './lib/auth'
 import { createMayarInvoice } from './lib/mayar'
+import { sendTelegramMessage, escapeHtml } from './lib/telegram'
 import { uploadImage, getImage, deleteImage } from './lib/r2'
 import { APP_JS } from './client/app-content'
 import { Layout } from './components/layout'
@@ -28,7 +29,7 @@ import { ContactPage } from './pages/static/contact'
 import { PrivacyPage } from './pages/static/privacy'
 import { ShippingPage } from './pages/static/shipping'
 
-const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; MAYAR_API_KEY?: string; ADMIN_SECRET?: string } }>()
+const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; MAYAR_API_KEY?: string; ADMIN_SECRET?: string; TELEGRAM_BOT_TOKEN?: string; TELEGRAM_CHAT_ID?: string } }>()
 const PER_PAGE = 20
 
 async function checkAdmin(c: any): Promise<boolean> {
@@ -296,6 +297,26 @@ app.post('/api/checkout', async (c) => {
     }
   }
 
+  // Notifikasi Telegram: pesanan baru
+  const lines = [
+    `🛒 <b>Pesanan Baru</b> <code>${escapeHtml(orderId)}</code>`,
+    ``,
+    `👤 ${escapeHtml(customer_name)}`,
+    `✉️ ${escapeHtml(customer_email)}`
+  ]
+  if (customer_phone) lines.push(`📱 ${escapeHtml(customer_phone)}`)
+  if (shipping_address) lines.push(`📍 ${escapeHtml(shipping_address)}`)
+  lines.push(``)
+  for (const di of dbItems) lines.push(`• ${escapeHtml(di.productName)} × ${di.quantity} — ${idr(di.productPrice * di.quantity)}`)
+  lines.push(``)
+  lines.push(`Subtotal: ${idr(subtotal)}`)
+  if (shipping) lines.push(`Ongkir: ${idr(shipping)}`)
+  if (tax) lines.push(`Pajak: ${idr(tax)}`)
+  if (discountAmount) lines.push(`Diskon ${escapeHtml(discountCode.toUpperCase())}: −${idr(discountAmount)}`)
+  lines.push(`💰 <b>Total: ${idr(total)}</b>`)
+  lines.push(`💳 Metode: ${paymentMethod === 'mayar' ? 'Mayar' : 'Manual'}`)
+  sendTelegramMessage(c.env, lines.join('\n'), { waitUntil: (p) => c.executionCtx.waitUntil(p) })
+
   return c.json({ orderId })
 })
 
@@ -333,7 +354,14 @@ app.post('/api/webhooks/mayar', async (c) => {
   const isPaid = body.event === 'payment.success' || body.status === 'PAID' || body.status === 'paid'
   const orderId = body.extraData?.orderId || body.data?.invoice?.extraData?.orderId || body.data?.extraData?.orderId || body.invoice?.extraData?.orderId
   if (orderId && isPaid) {
-    await db.update(s.orders).set({ status: 'paid', updatedAt: now() }).where(eq(s.orders.id, orderId))
+    const [ord] = await db.select().from(s.orders).where(eq(s.orders.id, orderId)).limit(1)
+    if (ord && ord.status !== 'paid') {
+      await db.update(s.orders).set({ status: 'paid', updatedAt: now() }).where(eq(s.orders.id, orderId))
+      // Notifikasi Telegram: pembayaran sukses via Mayar
+      sendTelegramMessage(c.env,
+        `✅ <b>Pembayaran Sukses (Mayar)</b>\nOrder <code>${escapeHtml(orderId)}</code> · ${escapeHtml(ord.customerName)} · <b>${idr(ord.totalAmount)}</b>`,
+        { waitUntil: (p) => c.executionCtx.waitUntil(p) })
+    }
   }
   return c.json({ ok: true })
 })
@@ -608,7 +636,22 @@ app.put('/api/admin/orders/:id', adminRoute(async (c) => {
   const db = getDb(c.env)
   const id = c.req.param('id')
   const body = await c.req.json()
+  const [ord] = await db.select().from(s.orders).where(eq(s.orders.id, id)).limit(1)
   await db.update(s.orders).set({ ...body, updatedAt: now() }).where(eq(s.orders.id, id))
+  // Notifikasi Telegram: status diubah admin
+  if (ord && body.status && body.status !== ord.status) {
+    const labels: Record<string, string> = {
+      paid: '✅ <b>Lunas (manual)</b>',
+      shipped: '📦 <b>Dikirim</b>',
+      cancelled: '❌ <b>Dibatalkan</b>'
+    }
+    const label = labels[body.status]
+    if (label) {
+      sendTelegramMessage(c.env,
+        `${label}\nOrder <code>${escapeHtml(id)}</code> · ${escapeHtml(ord.customerName)} · <b>${idr(ord.totalAmount)}</b>`,
+        { waitUntil: (p) => c.executionCtx.waitUntil(p) })
+    }
+  }
   return c.json({ ok: true })
 }))
 
