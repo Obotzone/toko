@@ -36,13 +36,31 @@ export const AdminSettingsPage = ({ settings, products = [], mayarConfigured }: 
     </div>
 
     <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
-    <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
       <h2 class="text-xl font-semibold">Kontak WhatsApp</h2>
       <form onsubmit="event.preventDefault(); saveSettings(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="md:col-span-2">
           <label for="whatsapp_number" class="block text-sm font-medium mb-1">Nomor WhatsApp</label>
-          <input type="text" id="whatsapp_number" name="whatsapp_number" value="" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="6281234567890">
+          <input type="text" id="whatsapp_number" name="whatsapp_number" value="${settings['whatsapp_number'] || ''}" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="6281234567890">
           <p class="text-xs text-zinc-500 mt-1">Ditampilkan di halaman checkout untuk bantuan.</p>
+        </div>
+        <div class="md:col-span-2">
+          <button type="submit" class="rounded-md bg-primary-600 px-4 py-2 text-white font-medium hover:bg-primary-700">Simpan</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 space-y-6">
+      <h2 class="text-xl font-semibold">Biaya &amp; Pajak</h2>
+      <form onsubmit="event.preventDefault(); saveSettings(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="shipping_cost" class="block text-sm font-medium mb-1">Ongkos Kirim (Rp)</label>
+          <input type="number" id="shipping_cost" name="shipping_cost" min="0" value="${settings['shipping_cost'] || ''}" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="15000">
+          <p class="text-xs text-zinc-500 mt-1">Berlaku jika ada produk fisik. Kosongkan untuk default Rp 15.000.</p>
+        </div>
+        <div>
+          <label for="tax_rate_percent" class="block text-sm font-medium mb-1">Pajak / PPN (%)</label>
+          <input type="number" id="tax_rate_percent" name="tax_rate_percent" min="0" step="0.1" value="${settings['tax_rate_percent'] || ''}" class="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-zinc-800" placeholder="11">
+          <p class="text-xs text-zinc-500 mt-1">Dihitung dari subtotal. Kosongkan untuk default 11%.</p>
         </div>
         <div class="md:col-span-2">
           <button type="submit" class="rounded-md bg-primary-600 px-4 py-2 text-white font-medium hover:bg-primary-700">Simpan</button>

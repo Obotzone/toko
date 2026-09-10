@@ -1,7 +1,8 @@
 import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 
-export const CheckoutForm = ({ mayarEnabled = true, settings = {} }: { mayarEnabled?: boolean; settings?: Record<string, string> }): any => html`
+export const CheckoutForm = ({ mayarEnabled = true, settings = {}, storeConfig = { shipping: 15000, taxRate: 0.11 } }: { mayarEnabled?: boolean; settings?: Record<string, string>; storeConfig?: { shipping: number; taxRate: number } }): any => html`
+  ${html`<script>window.STORE_CONFIG = { shipping: ${storeConfig.shipping}, taxRate: ${storeConfig.taxRate} };</script>`}
   <form id="checkout-form" class="space-y-6">
     <input type="hidden" id="checkout-items-input" name="items" value="[]">
 
@@ -56,7 +57,7 @@ export const CheckoutForm = ({ mayarEnabled = true, settings = {} }: { mayarEnab
         <span id="shipping-cost">Rp 0</span>
       </div>
       <div class="flex justify-between mb-2 text-sm">
-        <span class="text-zinc-600 dark:text-zinc-400">Pajak (PPN 11%)</span>
+        <span class="text-zinc-600 dark:text-zinc-400">Pajak (PPN ${Math.round(storeConfig.taxRate * 100)}%)</span>
         <span id="tax-amount">Rp 0</span>
       </div>
       <div class="flex justify-between mb-2 text-sm" id="discount-row" style="display:none">

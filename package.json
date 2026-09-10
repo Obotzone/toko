@@ -6,8 +6,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply etalase-db --remote",
-    "db:seed": "wrangler d1 execute etalase-db --remote --file=seed.sql"
+    "db:migrate": "wrangler d1 migrations apply toko-db --remote",
+    "db:seed": "wrangler d1 execute toko-db --remote --file=seed.sql"
   },
   "dependencies": {
     "drizzle-orm": "^0.30.0",

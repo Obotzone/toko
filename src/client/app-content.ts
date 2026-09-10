@@ -230,8 +230,11 @@ function recalcTotals() {
   var items = Cart.items;
   var subtotal = items.reduce(function(s, i) { return s + i.price * i.qty; }, 0);
   var hasPhysical = items.some(function(i) { return i.type === 'physical'; });
-  var shipping = hasPhysical ? 15000 : 0;
-  var tax = Math.round(subtotal * 0.11);
+  var cfg = window.STORE_CONFIG || {};
+  var shippingCost = typeof cfg.shipping === 'number' ? cfg.shipping : 15000;
+  var taxRate = typeof cfg.taxRate === 'number' ? cfg.taxRate : 0.11;
+  var shipping = hasPhysical ? shippingCost : 0;
+  var tax = Math.round(subtotal * taxRate);
   var discount = 0;
   var da = document.getElementById('discount-amount');
   var dc = document.getElementById('discount-code');

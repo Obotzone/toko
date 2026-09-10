@@ -22,10 +22,20 @@ export function now(): string {
 export const SHIPPING_COST = 15000;
 export const TAX_RATE = 0.11;
 
-export function calcShipping(items: { type: string }[]): number {
-  return items.some(i => i.type === 'physical') ? SHIPPING_COST : 0;
+export function calcShipping(items: { type: string }[], settings: Record<string, string> = {}): number {
+  return items.some(i => i.type === 'physical') ? getShippingCost(settings) : 0;
 }
 
-export function calcTax(subtotal: number): number {
-  return Math.round(subtotal * TAX_RATE);
+export function getShippingCost(settings: Record<string, string>): number {
+  const v = parseInt(settings['shipping_cost'] || '');
+  return Number.isFinite(v) && v >= 0 ? v : SHIPPING_COST;
+}
+
+export function getTaxRate(settings: Record<string, string>): number {
+  const v = parseFloat(settings['tax_rate_percent'] || '');
+  return Number.isFinite(v) && v >= 0 ? v / 100 : TAX_RATE;
+}
+
+export function calcTax(subtotal: number, settings: Record<string, string> = {}): number {
+  return Math.round(subtotal * getTaxRate(settings));
 }

@@ -2,7 +2,8 @@ import { Hono } from 'hono'
 import { getDb } from './db'
 import { eq, and, like, or, desc, asc, count, sql } from 'drizzle-orm'
 import * as s from './schema'
-import { idr, slugify, genId, now, SHIPPING_COST, TAX_RATE, calcShipping, calcTax } from './lib/utils'
+import { idr, slugify, genId, now, SHIPPING_COST, TAX_RATE, calcShipping, calcTax, getShippingCost, getTaxRate } from './lib/utils'
+import { createSessionToken, verifySessionToken, readSessionCookie, ADMIN_COOKIE } from './lib/auth'
 import { createMayarInvoice } from './lib/mayar'
 import { uploadImage, getImage, deleteImage } from './lib/r2'
 import { APP_JS } from './client/app-content'
@@ -30,9 +31,8 @@ import { ShippingPage } from './pages/static/shipping'
 const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; MAYAR_API_KEY?: string; ADMIN_SECRET?: string } }>()
 const PER_PAGE = 20
 
-function checkAdmin(c: any) {
-  const secret = c.req.header('Cookie')?.split(';').find((c: string) => c.trim().startsWith('admin_secret='))?.split('=')[1]
-  return secret === c.env.ADMIN_SECRET
+async function checkAdmin(c: any): Promise<boolean> {
+  return verifySessionToken(readSessionCookie(c.req.header('Cookie')), c.env.ADMIN_SECRET)
 }
 
 async function loadSettings(c: any): Promise<Record<string, string>> {
@@ -41,6 +41,21 @@ async function loadSettings(c: any): Promise<Record<string, string>> {
   const settings: Record<string, string> = {}
   for (const r of rows) settings[r.key] = r.value || ''
   return settings
+}
+
+// --- Admin Middleware ---
+async function adminGuard(c: any) {
+  if (!(await checkAdmin(c))) {
+    const headers = new Headers()
+    headers.set('Location', '/admin/login')
+    return new Response(null, { status: 302, headers })
+  }
+}
+
+const adminRoute = (handler: (c: any) => any) => async (c: any) => {
+  const guard = await adminGuard(c)
+  if (guard) return guard
+  return handler(c)
 }
 
 // --- Static Pages ---
@@ -87,7 +102,7 @@ app.get('/categories', async (c) => {
     description: s.categories.description,
     imageUrl: s.categories.imageUrl,
     productCount: count()
-  }).from(s.categories).leftJoin(s.products, eq(s.categories.id, s.products.categoryId)).where(eq(s.products.isActive, 1)).groupBy(s.categories.id).orderBy(s.categories.sortOrder)
+  }).from(s.categories).leftJoin(s.products, and(eq(s.categories.id, s.products.categoryId), eq(s.products.isActive, 1))).groupBy(s.categories.id).orderBy(s.categories.sortOrder)
   const settings = await loadSettings(c)
   return c.html(<Layout title="Kategori" settings={settings}><CategoriesPage categories={cats} /></Layout>)
 })
@@ -145,7 +160,8 @@ app.get('/search', async (c) => {
 app.get('/checkout', async (c) => {
   const settings = await loadSettings(c)
   const mayarEnabled = settings['mayar_enabled'] !== '0'
-  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage mayarEnabled={mayarEnabled} settings={settings} /></Layout>)
+  const storeConfig = { shipping: getShippingCost(settings), taxRate: getTaxRate(settings) }
+  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage mayarEnabled={mayarEnabled} settings={settings} storeConfig={storeConfig} /></Layout>)
 })
 
 // --- Success ---
@@ -188,6 +204,7 @@ app.get('/api/products', async (c) => {
 app.post('/api/checkout', async (c) => {
   const db = getDb(c.env)
   const body = await c.req.json()
+  const settings = await loadSettings(c)
   const { customer_name, customer_email, customer_phone, shipping_address, paymentMethod, items } = body
 
   if (!customer_name || !customer_email || !items?.length) {
@@ -199,9 +216,11 @@ app.post('/api/checkout', async (c) => {
   let hasPhysical = false
 
   for (const item of items) {
+    const qty = Math.floor(Number(item.qty))
+    if (!Number.isFinite(qty) || qty < 1) return c.json({ error: `Jumlah item ${item.name || item.id} tidak valid` }, 400)
     const [product] = await db.select().from(s.products).where(and(eq(s.products.id, item.id), eq(s.products.isActive, 1))).limit(1)
     if (!product) return c.json({ error: `Produk ${item.name} tidak ditemukan` }, 400)
-    if (product.type === 'physical' && product.stock < item.qty) return c.json({ error: `Stok ${product.name} tidak mencukupi` }, 400)
+    if (product.type === 'physical' && product.stock < qty) return c.json({ error: `Stok ${product.name} tidak mencukupi` }, 400)
 
     dbItems.push({
       id: genId(),
@@ -209,14 +228,15 @@ app.post('/api/checkout', async (c) => {
       productId: product.id,
       productName: product.name,
       productPrice: product.price,
-      quantity: item.qty
+      quantity: qty,
+      type: product.type
     })
-    subtotal += product.price * item.qty
+    subtotal += product.price * qty
     if (product.type === 'physical') hasPhysical = true
   }
 
-  const shipping = hasPhysical ? SHIPPING_COST : 0
-  const tax = calcTax(subtotal)
+  const shipping = hasPhysical ? getShippingCost(settings) : 0
+  const tax = calcTax(subtotal, settings)
   let discountAmount = 0
   let discountLabel = ''
   const discountCode = body.discountCode || ''
@@ -269,8 +289,11 @@ app.post('/api/checkout', async (c) => {
 
   for (const di of dbItems) {
     di.orderId = orderId
-    await db.insert(s.orderItems).values(di)
-    await db.update(s.products).set({ stock: sql`${s.products.stock} - ${di.quantity}` }).where(eq(s.products.id, di.productId))
+    const { type, ...orderItem } = di
+    await db.insert(s.orderItems).values(orderItem)
+    if (type === 'physical') {
+      await db.update(s.products).set({ stock: sql`${s.products.stock} - ${di.quantity}` }).where(eq(s.products.id, di.productId))
+    }
   }
 
   return c.json({ orderId })
@@ -347,7 +370,7 @@ app.get('/api/orders/:id/status', async (c) => {
 })
 
 // --- API: Image Upload ---
-app.post('/api/upload', async (c) => {
+app.post('/api/upload', adminRoute(async (c) => {
   const fd = await c.req.formData()
   const file = fd.get('file') as File
   if (!file) return c.json({ error: 'File diperlukan' }, 400)
@@ -357,7 +380,7 @@ app.post('/api/upload', async (c) => {
   const ab = await file.arrayBuffer()
   const key = await uploadImage(c.env.BUCKET, name, file.type, ab)
   return c.json({ key })
-})
+}))
 
 // --- API: Serve Image ---
 app.get('/api/images/*', async (c) => {
@@ -427,9 +450,10 @@ app.get('/admin/login', async (c) => {
 app.post('/api/admin/login', async (c) => {
   const fd = await c.req.formData()
   const password = fd.get('password')?.toString()
-  if (password === c.env.ADMIN_SECRET) {
+  if (c.env.ADMIN_SECRET && password === c.env.ADMIN_SECRET) {
+    const session = await createSessionToken(c.env.ADMIN_SECRET)
     const headers = new Headers()
-    headers.set('Set-Cookie', `admin_secret=${c.env.ADMIN_SECRET}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`)
+    headers.set('Set-Cookie', `${ADMIN_COOKIE}=${session.token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${session.maxAge}`)
     headers.set('Location', '/admin')
     return new Response(null, { status: 302, headers })
   }
@@ -440,25 +464,10 @@ app.post('/api/admin/login', async (c) => {
 
 app.post('/api/admin/logout', async (c) => {
   const headers = new Headers()
-  headers.set('Set-Cookie', `admin_secret=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`)
+  headers.set('Set-Cookie', `${ADMIN_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`)
   headers.set('Location', '/admin/login')
   return new Response(null, { status: 302, headers })
 })
-
-// --- Admin Middleware ---
-function adminGuard(c: any) {
-  if (!checkAdmin(c)) {
-    const headers = new Headers()
-    headers.set('Location', '/admin/login')
-    return new Response(null, { status: 302, headers })
-  }
-}
-
-const adminRoute = (handler: (c: any) => any) => async (c: any) => {
-  const guard = adminGuard(c)
-  if (guard) return guard
-  return handler(c)
-}
 
 // --- Admin: Dashboard ---
 app.get('/admin', adminRoute(async (c) => {
@@ -586,10 +595,10 @@ app.get('/admin/orders/:id', adminRoute(async (c) => {
       </div>
       <div class="flex gap-2">
         {order.status === 'pending' ? <>
-          <button onclick="adminPut('/api/admin/orders/' + '{order.id}', { status: 'paid' })" class="rounded-md bg-green-600 px-4 py-2 text-white text-sm font-medium hover:bg-green-700">Tandai Lunas</button>
-          <button onclick="adminPut('/api/admin/orders/' + '{order.id}', { status: 'cancelled' })" class="rounded-md bg-red-600 px-4 py-2 text-white text-sm font-medium hover:bg-red-700">Batalkan</button>
+          <button onclick={`adminPut('/api/admin/orders/${order.id}', { status: 'paid' })`} class="rounded-md bg-green-600 px-4 py-2 text-white text-sm font-medium hover:bg-green-700">Tandai Lunas</button>
+          <button onclick={`adminPut('/api/admin/orders/${order.id}', { status: 'cancelled' })`} class="rounded-md bg-red-600 px-4 py-2 text-white text-sm font-medium hover:bg-red-700">Batalkan</button>
         </> : ''}
-        {order.status === 'paid' ? <button onclick="adminPut('/api/admin/orders/' + '{order.id}', { status: 'shipped' })" class="rounded-md bg-blue-600 px-4 py-2 text-white text-sm font-medium hover:bg-blue-700">Tandai Dikirim</button> : ''}
+        {order.status === 'paid' ? <button onclick={`adminPut('/api/admin/orders/${order.id}', { status: 'shipped' })`} class="rounded-md bg-blue-600 px-4 py-2 text-white text-sm font-medium hover:bg-blue-700">Tandai Dikirim</button> : ''}
       </div>
     </div>
   </Layout>)

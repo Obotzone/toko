@@ -1,4 +1,5 @@
 export { sql, eq, and, or, like, desc, asc, count, sum } from 'drizzle-orm';
+import { sql as sqlTag } from 'drizzle-orm';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 export const categories = sqliteTable('categories', {
@@ -24,7 +25,7 @@ export const products = sqliteTable('products', {
   type: text('type').notNull().default('physical'),
   isActive: integer('is_active').notNull().default(1),
   isFeatured: integer('is_featured').notNull().default(0),
-  createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').default(sqlTag`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at')
 });
 
@@ -33,7 +34,7 @@ export const customers = sqliteTable('customers', {
   name: text('name').notNull(),
   email: text('email').notNull(),
   phone: text('phone'),
-  createdAt: text('created_at').default('CURRENT_TIMESTAMP')
+  createdAt: text('created_at').default(sqlTag`CURRENT_TIMESTAMP`)
 });
 
 export const orders = sqliteTable('orders', {
@@ -51,7 +52,7 @@ export const orders = sqliteTable('orders', {
   paymentMethod: text('payment_method').notNull().default('manual'),
   paymentId: text('payment_id'),
   notes: text('notes'),
-  createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').default(sqlTag`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at')
 });
 
