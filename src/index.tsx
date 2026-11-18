@@ -1,10 +1,9 @@
 import { Hono } from 'hono'
 import { getDb } from './db'
-import { eq, and, like, or, desc, asc, count, sql } from 'drizzle-orm'
+import { eq, and, like, or, desc, asc, count, sql, gte } from 'drizzle-orm'
 import * as s from './schema'
 import { idr, slugify, genId, now, SHIPPING_COST, TAX_RATE, calcShipping, calcTax, getShippingCost, getTaxRate } from './lib/utils'
 import { createSessionToken, verifySessionToken, readSessionCookie, ADMIN_COOKIE } from './lib/auth'
-import { createMayarInvoice } from './lib/mayar'
 import { sendTelegramMessage, escapeHtml } from './lib/telegram'
 import { uploadImage, getImage, deleteImage } from './lib/r2'
 import { APP_JS } from './client/app-content'
@@ -31,6 +30,24 @@ import { ShippingPage } from './pages/static/shipping'
 
 const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; MAYAR_API_KEY?: string; ADMIN_SECRET?: string; TELEGRAM_BOT_TOKEN?: string; TELEGRAM_CHAT_ID?: string } }>()
 const PER_PAGE = 20
+const RATE_WINDOW_MS = 60_000
+const rateBuckets = new Map<string, { count: number; resetAt: number }>()
+
+function rateLimit(c: any, key: string, limit: number): Response | null {
+  const nowMs = Date.now()
+  const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown'
+  const bucketKey = `${key}:${ip}`
+  const current = rateBuckets.get(bucketKey)
+  if (!current || current.resetAt <= nowMs) {
+    rateBuckets.set(bucketKey, { count: 1, resetAt: nowMs + RATE_WINDOW_MS })
+    return null
+  }
+  if (current.count >= limit) {
+    return c.json({ error: 'Terlalu banyak permintaan. Coba lagi nanti.' }, 429, { 'Retry-After': String(Math.ceil((current.resetAt - nowMs) / 1000)) })
+  }
+  current.count++
+  return null
+}
 
 async function checkAdmin(c: any): Promise<boolean> {
   return verifySessionToken(readSessionCookie(c.req.header('Cookie')), c.env.ADMIN_SECRET)
@@ -160,9 +177,8 @@ app.get('/search', async (c) => {
 // --- Checkout ---
 app.get('/checkout', async (c) => {
   const settings = await loadSettings(c)
-  const mayarEnabled = settings['mayar_enabled'] !== '0'
   const storeConfig = { shipping: getShippingCost(settings), taxRate: getTaxRate(settings) }
-  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage mayarEnabled={mayarEnabled} settings={settings} storeConfig={storeConfig} /></Layout>)
+  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage settings={settings} storeConfig={storeConfig} /></Layout>)
 })
 
 // --- Success ---
@@ -203,6 +219,8 @@ app.get('/api/products', async (c) => {
 
 // --- API: Checkout ---
 app.post('/api/checkout', async (c) => {
+  const limited = rateLimit(c, 'checkout', 10)
+  if (limited) return limited
   const db = getDb(c.env)
   const body = await c.req.json()
   const settings = await loadSettings(c)
@@ -213,6 +231,7 @@ app.post('/api/checkout', async (c) => {
   }
 
   const dbItems = []
+  const reservedStock: Array<{ id: string; qty: number }> = []
   let subtotal = 0
   let hasPhysical = false
 
@@ -221,7 +240,18 @@ app.post('/api/checkout', async (c) => {
     if (!Number.isFinite(qty) || qty < 1) return c.json({ error: `Jumlah item ${item.name || item.id} tidak valid` }, 400)
     const [product] = await db.select().from(s.products).where(and(eq(s.products.id, item.id), eq(s.products.isActive, 1))).limit(1)
     if (!product) return c.json({ error: `Produk ${item.name} tidak ditemukan` }, 400)
-    if (product.type === 'physical' && product.stock < qty) return c.json({ error: `Stok ${product.name} tidak mencukupi` }, 400)
+    if (product.type === 'physical') {
+      const reserved = await db.update(s.products)
+        .set({ stock: sql`${s.products.stock} - ${qty}` })
+        .where(and(eq(s.products.id, product.id), gte(s.products.stock, qty)))
+      if (!reserved.meta?.changes) {
+        for (const held of reservedStock) {
+          await db.update(s.products).set({ stock: sql`${s.products.stock} + ${held.qty}` }).where(eq(s.products.id, held.id))
+        }
+        return c.json({ error: `Stok ${product.name} tidak mencukupi` }, 409)
+      }
+      reservedStock.push({ id: product.id, qty })
+    }
 
     dbItems.push({
       id: genId(),
@@ -292,9 +322,6 @@ app.post('/api/checkout', async (c) => {
     di.orderId = orderId
     const { type, ...orderItem } = di
     await db.insert(s.orderItems).values(orderItem)
-    if (type === 'physical') {
-      await db.update(s.products).set({ stock: sql`${s.products.stock} - ${di.quantity}` }).where(eq(s.products.id, di.productId))
-    }
   }
 
   // Notifikasi Telegram: pesanan baru
@@ -322,6 +349,8 @@ app.post('/api/checkout', async (c) => {
 
 // --- API: Mayar Checkout ---
 app.post('/api/checkout/mayar', async (c) => {
+  return c.json({ error: 'Payment gateway sedang dinonaktifkan sementara' }, 410)
+  /*
   const body = await c.req.json()
   const { orderId } = body
   if (!c.env.MAYAR_API_KEY) return c.json({ error: 'Mayar tidak dikonfigurasi' }, 400)
@@ -342,6 +371,7 @@ app.post('/api/checkout/mayar', async (c) => {
 
   await db.update(s.orders).set({ paymentId: result.data.id }).where(eq(s.orders.id, orderId))
   return c.json({ link: result.data.link })
+  */
 })
 
 // --- API: Mayar Webhook ---
@@ -369,6 +399,8 @@ app.post('/api/webhooks/mayar', async (c) => {
 
 // --- API: Validate Discount ---
 app.post('/api/checkout/validate-discount', async (c) => {
+  const limited = rateLimit(c, 'discount', 30)
+  if (limited) return limited
   const body = await c.req.json()
   const code = (body.code || '').toUpperCase()
   if (!code) return c.json({ valid: false, error: 'Kode tidak boleh kosong' })
@@ -476,6 +508,8 @@ app.get('/admin/login', async (c) => {
 })
 
 app.post('/api/admin/login', async (c) => {
+  const limited = rateLimit(c, 'admin-login', 5)
+  if (limited) return limited
   const fd = await c.req.formData()
   const password = fd.get('password')?.toString()
   if (c.env.ADMIN_SECRET && password === c.env.ADMIN_SECRET) {

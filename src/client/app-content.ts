@@ -174,23 +174,8 @@ document.addEventListener('submit', async function(e) {
       return;
     }
     var orderId = (await res.json()).orderId;
-    var pm = data.paymentMethod;
     localStorage.removeItem(Cart.KEY);
-    if (pm === 'mayar') {
-      var mayarRes = await fetch('/api/checkout/mayar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: orderId })
-      });
-      if (mayarRes.ok) {
-        var link = (await mayarRes.json()).link;
-        window.location.href = link;
-      } else {
-        window.location.href = '/checkout/success?orderId=' + orderId;
-      }
-    } else {
-      window.location.href = '/checkout/success?orderId=' + orderId;
-    }
+    window.location.href = '/checkout/success?orderId=' + orderId;
   } catch (err) {
     alert('Terjadi kesalahan: ' + err.message);
     btn.disabled = false;

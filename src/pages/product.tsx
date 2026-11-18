@@ -26,6 +26,20 @@ interface Related {
 }
 
 export const ProductPage = ({ product, related }: { product: Product; related: Related[] }): any => html`
+  <script type="application/ld+json">${JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description || undefined,
+    image: product.imageUrl ? [product.imageUrl.startsWith('http') ? product.imageUrl : `/api/images/${product.imageUrl}`] : undefined,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'IDR',
+      price: product.price,
+      availability: product.type === 'physical' && product.stock <= 0 ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      url: `/products/${product.slug}`
+    }
+  })}</script>
   <div class="max-w-5xl mx-auto">
     <a href="/" class="text-sm text-primary-600 hover:text-primary-500 mb-6 inline-block">&larr; Kembali</a>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
