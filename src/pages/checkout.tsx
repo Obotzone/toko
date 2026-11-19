@@ -4,7 +4,10 @@ import { CheckoutForm } from '../components/checkout-form';
 export const CheckoutPage = ({ settings = {}, storeConfig = { shipping: 15000, taxRate: 0.11 } }: { settings?: Record<string, string>; storeConfig?: { shipping: number; taxRate: number } }): any => html`
   <div class="max-w-3xl mx-auto">
     <a href="/" class="text-sm text-primary-600 hover:text-primary-500 mb-6 inline-block">&larr; Lanjut Belanja</a>
-    <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-8">Checkout</h1>
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Checkout</h1>
+      <p class="mt-2 text-sm text-zinc-500">Lengkapi data di bawah untuk menyelesaikan pesanan.</p>
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2">
         ${CheckoutForm({ settings, storeConfig })}

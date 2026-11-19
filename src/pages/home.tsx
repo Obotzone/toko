@@ -21,17 +21,17 @@ interface Category {
 export const HomePage = ({ products, categories, settings = {} }: { products: Product[]; categories: Category[]; settings?: Record<string, string> }): any => {
   const heroTitle = settings['hero_title'] || 'Selamat Datang di Etalase';
   const heroSubtitle = settings['hero_subtitle'] || 'Temukan produk terbaik untuk kebutuhan Anda. Mulai dari elektronik, pakaian, hingga buku berkualitas.';
-  const heroBtnText = settings['hero_button_text'] || 'Lihat Produk';
+  const heroBtnText = settings['hero_button_text'] || 'Belanja Sekarang';
   const heroBtnUrl = settings['hero_button_url'] || '/categories';
   const heroBg = settings['hero_bg_color'] || 'from-primary-600/90 to-primary-600/30';
   const heroImg = settings['hero_image'] || '';
   return html`
-  <div class="space-y-16">
-    <section class="relative rounded-2xl overflow-hidden bg-primary-600 text-white p-8 md:p-16 min-h-[400px] flex items-center">
+  <div class="space-y-12 md:space-y-16">
+    <section class="relative rounded-2xl overflow-hidden bg-primary-600 text-white p-6 sm:p-8 md:p-16 min-h-[360px] md:min-h-[400px] flex items-center">
       ${heroImg ? html`<div class="absolute inset-0"><img src="${heroImg.startsWith('http') ? heroImg : '/api/images/' + heroImg}" class="w-full h-full object-cover"></div>` : ''}
       <div class="relative z-10 max-w-2xl">
-        <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">${heroTitle}</h1>
-        <p class="text-lg text-primary-100 mb-8">${heroSubtitle}</p>
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-5 md:mb-6">${heroTitle}</h1>
+        <p class="text-base sm:text-lg text-primary-100 mb-7 md:mb-8">${heroSubtitle}</p>
         <a href="${heroBtnUrl}" class="inline-block rounded-md bg-white text-primary-600 px-6 py-3 font-medium hover:bg-primary-50 transition-colors">
           ${heroBtnText}
         </a>
@@ -43,7 +43,7 @@ export const HomePage = ({ products, categories, settings = {} }: { products: Pr
     </section>
 
     <section>
-      <div class="flex justify-between items-end mb-8">
+      <div class="flex flex-wrap justify-between items-end gap-3 mb-6 md:mb-8">
         <div>
           <h2 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Produk Unggulan</h2>
           <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Pilihan produk terbaik dari kami.</p>

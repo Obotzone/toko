@@ -13,7 +13,7 @@ interface ProductCardProps { originalPrice?: number | null;
 }
 
 export const ProductCard = ({ id, name, slug, price, originalPrice, imageUrl, type, stock }: ProductCardProps): any => html`
-  <a href="/products/${slug}" class="group block rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+  <a href="/products/${slug}" aria-label="Lihat ${name}" class="group block rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
     <div class="aspect-square bg-zinc-100 dark:bg-zinc-800 overflow-hidden relative">
       ${imageUrl 
         ? html`<img src="${imageUrl.startsWith('http') ? imageUrl : `/api/images/${imageUrl}`}" alt="${name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">`
@@ -28,7 +28,10 @@ export const ProductCard = ({ id, name, slug, price, originalPrice, imageUrl, ty
     </div>
     <div class="p-4">
       <h3 class="font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2 group-hover:text-primary-600 transition-colors">${name}</h3>
-      <p class="text-primary-600 dark:text-primary-400 font-semibold">${idr(price)}</p>
+      <div class="flex items-end justify-between gap-2">
+        <p class="text-primary-600 dark:text-primary-400 font-semibold">${idr(price)}</p>
+        <span class="text-xs font-medium text-primary-600 dark:text-primary-400 opacity-0 group-hover:opacity-100 transition-opacity">Lihat detail →</span>
+      </div>
     </div>
   </a>
 `;

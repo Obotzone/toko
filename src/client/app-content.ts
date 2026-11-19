@@ -63,7 +63,13 @@ const Cart = {
     const totalEl = document.getElementById('cart-total');
     if (totalEl) totalEl.textContent = 'Rp ' + this.totalPrice.toLocaleString('id-ID');
     const checkoutBtn = document.getElementById('checkout-btn');
-    if (checkoutBtn) checkoutBtn.disabled = items.length === 0;
+    if (checkoutBtn) {
+      checkoutBtn.setAttribute('aria-disabled', items.length === 0 ? 'true' : 'false');
+      checkoutBtn.classList.toggle('opacity-50', items.length === 0);
+      checkoutBtn.classList.toggle('pointer-events-none', items.length === 0);
+    }
+    const checkoutSubmit = document.getElementById('checkout-submit');
+    if (checkoutSubmit) checkoutSubmit.disabled = items.length === 0;
   }
 };
 
@@ -99,6 +105,8 @@ function closeCart() {
 }
 
 document.addEventListener('click', function(e) {
+  var checkoutBtn = e.target.closest('#checkout-btn');
+  if (checkoutBtn && !Cart.items.length) { e.preventDefault(); return; }
   var cartBtn = e.target.closest('#cart-btn');
   if (cartBtn) { openCart(); return; }
   var closeBtn = e.target.closest('#cart-close');
@@ -173,9 +181,10 @@ document.addEventListener('submit', async function(e) {
       btn.textContent = 'Bayar Sekarang';
       return;
     }
-    var orderId = (await res.json()).orderId;
+    var result = await res.json();
+    var orderId = result.orderId;
     localStorage.removeItem(Cart.KEY);
-    window.location.href = '/checkout/success?orderId=' + orderId;
+    window.location.href = result.paymentUrl || '/checkout/success?orderId=' + encodeURIComponent(orderId);
   } catch (err) {
     alert('Terjadi kesalahan: ' + err.message);
     btn.disabled = false;
@@ -241,7 +250,9 @@ function renderCheckoutCart() {
   var container = document.getElementById('checkout-cart-items');
   if (!container) return;
   var items = Cart.items;
-  if (!items.length) { container.innerHTML = '<p class="text-sm text-zinc-500">Keranjang kosong</p>'; return; }
+  var submit = document.getElementById('checkout-submit');
+  if (!items.length) { container.innerHTML = '<p class="text-sm text-zinc-500">Keranjang kosong. <a href="/categories" class="text-primary-600 hover:underline">Lihat produk</a></p>'; if (submit) submit.disabled = true; return; }
+  if (submit) submit.disabled = false;
   container.innerHTML = items.map(function(i) {
     return '<div class="flex items-center gap-3 text-sm">' +
       '<div class="w-12 h-12 rounded bg-zinc-100 dark:bg-zinc-800 overflow-hidden shrink-0">' +

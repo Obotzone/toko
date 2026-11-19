@@ -9,27 +9,35 @@ export const CheckoutForm = ({ settings = {}, storeConfig = { shipping: 15000, t
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
         <label for="customer_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nama Lengkap</label>
-        <input type="text" id="customer_name" name="customer_name" required class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+        <input type="text" id="customer_name" name="customer_name" autocomplete="name" enterkeyhint="next" required class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
       </div>
       <div>
         <label for="customer_email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-        <input type="email" id="customer_email" name="customer_email" required class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+        <input type="email" id="customer_email" name="customer_email" autocomplete="email" enterkeyhint="next" required class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
       </div>
       <div>
         <label for="customer_phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telepon (Opsional)</label>
-        <input type="tel" id="customer_phone" name="customer_phone" class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+        <input type="tel" id="customer_phone" name="customer_phone" autocomplete="tel" inputmode="tel" enterkeyhint="next" class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
       </div>
       <div class="md:col-span-2">
         <label for="shipping_address" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Alamat Pengiriman</label>
-        <textarea id="shipping_address" name="shipping_address" rows="3" class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none" placeholder="Masukkan alamat lengkap untuk pengiriman barang fisik..."></textarea>
+        <textarea id="shipping_address" name="shipping_address" autocomplete="street-address" enterkeyhint="done" rows="3" class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none" placeholder="Masukkan alamat lengkap untuk pengiriman barang fisik..."></textarea>
       </div>
     </div>
 
     <div>
       <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Metode Pembayaran</label>
       <div class="space-y-3">
-
         <label class="flex items-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
+          <input type="radio" name="paymentMethod" value="qris" checked class="text-primary-600 focus:ring-primary-500 mr-3">
+          <div>
+            <span class="block font-medium text-sm">QRIS Otomatis</span>
+            <span class="block text-xs text-zinc-500">Scan QRIS dan status pembayaran diperbarui otomatis.</span>
+          </div>
+        </label>
+
+        <label class="flex items-center
+ p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
           <input type="radio" name="paymentMethod" value="manual" class="text-primary-600 focus:ring-primary-500 mr-3">
           <div>
             <span class="block font-medium text-sm">Transfer Bank Manual</span>
@@ -82,7 +90,7 @@ export const CheckoutForm = ({ settings = {}, storeConfig = { shipping: 15000, t
       <p id="discount-msg" class="text-xs mt-1 text-zinc-500"></p>
     </div>
 
-    <button type="submit" class="w-full rounded-md bg-primary-600 px-4 py-3 text-white font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">
+    <button id="checkout-submit" type="submit" disabled class="w-full rounded-md bg-primary-600 px-4 py-3 text-white font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">
       Bayar Sekarang
     </button>
   </form>
