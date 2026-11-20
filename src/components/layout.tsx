@@ -2,7 +2,7 @@ import { html } from 'hono/html';
 
 const CART_DRAWER_ID = 'cart-drawer';
 
-export const Layout = ({ title, children, isAdmin = false, settings = {} }: { title: string; children: any; isAdmin?: boolean; settings?: Record<string, string> }) => {
+export const Layout = ({ title, children, isAdmin = false, settings = {}, customer = null }: { title: string; children: any; isAdmin?: boolean; settings?: Record<string, string>; customer?: { name: string } | null }) => {
   const storeName = settings['store_name'] || 'Etalase';
   const desc = settings['store_description'] || 'Toko online terpercaya untuk kebutuhan Anda.';
   const keywords = settings['store_keywords'] || 'toko online, belanja, e-commerce';
@@ -39,14 +39,14 @@ export const Layout = ({ title, children, isAdmin = false, settings = {} }: { ti
   </style>
 </head>
 <body class="bg-zinc-50 dark:bg-black text-zinc-900 dark:text-white min-h-screen flex flex-col">
-  ${isAdmin ? AdminShell({ children, storeName }) : CustomerShell({ children, storeName, logoUrl, settings })}
+  ${isAdmin ? AdminShell({ children, storeName }) : CustomerShell({ children, storeName, logoUrl, settings, customer })}
   <script src="/client/app.js"></script>
 </body>
 </html>
 `;
 };
 
-const CustomerShell = ({ children, storeName, logoUrl, settings }: { children: any; storeName: string; logoUrl: string | null; settings: Record<string, string> }) => html`
+const CustomerShell = ({ children, storeName, logoUrl, settings, customer }: { children: any; storeName: string; logoUrl: string | null; settings: Record<string, string>; customer: { name: string } | null }) => html`
   <header class="sticky top-0 z-40 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md">
     <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <a href="/" class="flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight text-primary-600 min-w-0">
@@ -67,7 +67,7 @@ const CustomerShell = ({ children, storeName, logoUrl, settings }: { children: a
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
           <span id="cart-count" class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center hidden">0</span>
         </button>
-        <a href="/admin/login" class="hidden sm:inline text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">Admin</a>
+        <a href="${customer ? '/account' : '/login'}" class="text-sm text-zinc-600 hover:text-primary-600 dark:text-zinc-300">${customer ? (customer.name || 'Akun') : 'Akun'}</a>
       </div>
     </nav>
   </header>

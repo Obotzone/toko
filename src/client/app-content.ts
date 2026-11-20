@@ -3,7 +3,16 @@ export const APP_JS = String.raw`
 const Cart = {
   KEY: 'etalase-cart',
   get items() { return JSON.parse(localStorage.getItem(this.KEY) || '[]'); },
-  set items(v) { localStorage.setItem(this.KEY, JSON.stringify(v)); this.render(); },
+  set items(v) { localStorage.setItem(this.KEY, JSON.stringify(v)); this.render(); this.sync(); },
+  accountReady: false,
+  syncTimer: null,
+  async sync() {
+    if (!this.accountReady) return;
+    clearTimeout(this.syncTimer);
+    this.syncTimer = setTimeout(async () => {
+      try { await fetch('/api/account/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: this.items }) }); } catch (_) {}
+    }, 300);
+  },
   add(product, qty = 1) {
     const items = this.items;
     const idx = items.findIndex(i => i.id === product.id);
@@ -272,7 +281,24 @@ function populateCheckoutInputs() {
   if (input) input.value = JSON.stringify(Cart.items);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+  try {
+    var cartResponse = await fetch('/api/account/cart');
+    if (cartResponse.ok) {
+      var remoteCart = await cartResponse.json();
+      if (Array.isArray(remoteCart.items) && remoteCart.items.length) {
+        var localCart = Cart.items;
+        var merged = new Map();
+        localCart.concat(remoteCart.items).forEach(function(item) {
+          if (!item || !item.id || !Number.isFinite(Number(item.price)) || !Number.isFinite(Number(item.qty))) return;
+          var existing = merged.get(item.id);
+          merged.set(item.id, existing ? Object.assign({}, item, { qty: Math.min(Number(item.stock) || 99, Number(existing.qty) + Number(item.qty)) }) : item);
+        });
+        localStorage.setItem(Cart.KEY, JSON.stringify(Array.from(merged.values())));
+      }
+      Cart.accountReady = true;
+    }
+  } catch (_) {}
   Cart.render();
   recalcTotals();
   renderCheckoutCart();

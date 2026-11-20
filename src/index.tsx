@@ -27,8 +27,9 @@ import { AboutPage } from './pages/static/about'
 import { ContactPage } from './pages/static/contact'
 import { PrivacyPage } from './pages/static/privacy'
 import { ShippingPage } from './pages/static/shipping'
+import { createCustomerSession, readCustomerSession, randomToken, readCookie, CUSTOMER_COOKIE, OAUTH_STATE_COOKIE, GOOGLE_STATE_MAX_AGE } from './lib/customer-auth'
 
-const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; MAYAR_API_KEY?: string; ADMIN_SECRET?: string; TELEGRAM_BOT_TOKEN?: string; TELEGRAM_CHAT_ID?: string } }>()
+const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; QBIZ_API_URL?: string; QBIZ_API_KEY?: string; QBIZ_WEBHOOK_SECRET?: string; QBIZ_MERCHANT_ID?: string; ADMIN_SECRET?: string; GOOGLE_CLIENT_ID?: string; GOOGLE_CLIENT_SECRET?: string; CUSTOMER_SESSION_SECRET?: string; TELEGRAM_BOT_TOKEN?: string; TELEGRAM_CHAT_ID?: string } }>()
 const PER_PAGE = 20
 const RATE_WINDOW_MS = 60_000
 const rateBuckets = new Map<string, { count: number; resetAt: number }>()
@@ -51,6 +52,14 @@ function rateLimit(c: any, key: string, limit: number): Response | null {
 
 async function checkAdmin(c: any): Promise<boolean> {
   return verifySessionToken(readSessionCookie(c.req.header('Cookie')), c.env.ADMIN_SECRET)
+}
+
+async function customerSession(c: any) {
+  return readCustomerSession(c.req.header('Cookie'), c.env.CUSTOMER_SESSION_SECRET)
+}
+
+function customerCookie(value: string, maxAge: number) {
+  return `${CUSTOMER_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`
 }
 
 async function loadSettings(c: any): Promise<Record<string, string>> {
@@ -76,6 +85,85 @@ const adminRoute = (handler: (c: any) => any) => async (c: any) => {
   return handler(c)
 }
 
+// --- Customer Google account ---
+app.get('/login', async (c) => {
+  const customer = await customerSession(c)
+  if (customer) return c.redirect('/account')
+  const settings = await loadSettings(c)
+  const configured = !!(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET && c.env.CUSTOMER_SESSION_SECRET)
+  return c.html(<Layout title="Masuk" settings={settings}><main class="max-w-md mx-auto py-8"><section class="p-6 sm:p-8 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800"><h1 class="text-2xl font-bold">Masuk ke akun</h1><p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Simpan keranjang dan lihat riwayat pesanan Anda.</p>{configured ? <a href="/auth/google" class="mt-6 flex min-h-12 items-center justify-center gap-3 rounded-md border border-zinc-300 dark:border-zinc-700 px-4 py-3 font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800"><span aria-hidden="true">G</span> Lanjutkan dengan Google</a> : <p class="mt-6 rounded-md bg-amber-50 p-3 text-sm text-amber-900">Login Google sedang disiapkan.</p>}</section></main></Layout>)
+})
+
+app.get('/auth/google', async (c) => {
+  if (!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET || !c.env.CUSTOMER_SESSION_SECRET) return c.text('Google login belum dikonfigurasi', 503)
+  const state = randomToken()
+  const redirectUri = new URL('/auth/google/callback', c.req.url).toString()
+  const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+  url.searchParams.set('client_id', c.env.GOOGLE_CLIENT_ID)
+  url.searchParams.set('redirect_uri', redirectUri)
+  url.searchParams.set('response_type', 'code')
+  url.searchParams.set('scope', 'openid email profile')
+  url.searchParams.set('state', state)
+  url.searchParams.set('prompt', 'select_account')
+  const headers = new Headers({ Location: url.toString() })
+  headers.append('Set-Cookie', `${OAUTH_STATE_COOKIE}=${state}; Path=/auth/google/callback; HttpOnly; Secure; SameSite=Lax; Max-Age=${GOOGLE_STATE_MAX_AGE}`)
+  return new Response(null, { status: 302, headers })
+})
+
+app.get('/auth/google/callback', async (c) => {
+  const state = c.req.query('state') || ''
+  const expected = readCookie(c.req.header('Cookie'), OAUTH_STATE_COOKIE)
+  const clearState = `${OAUTH_STATE_COOKIE}=; Path=/auth/google/callback; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
+  if (!state || !expected || state !== expected || !c.req.query('code')) return c.text('Login Google tidak valid. Coba lagi.', 400, { 'Set-Cookie': clearState })
+  if (!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET || !c.env.CUSTOMER_SESSION_SECRET) return c.text('Google login belum dikonfigurasi', 503)
+  const redirectUri = new URL('/auth/google/callback', c.req.url).toString()
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code: c.req.query('code')!, client_id: c.env.GOOGLE_CLIENT_ID, client_secret: c.env.GOOGLE_CLIENT_SECRET, redirect_uri: redirectUri, grant_type: 'authorization_code' }) })
+  if (!tokenResponse.ok) return c.text('Tidak dapat memverifikasi login Google.', 401, { 'Set-Cookie': clearState })
+  const tokenData = await tokenResponse.json() as { id_token?: string }
+  if (!tokenData.id_token) return c.text('Token Google tidak tersedia.', 401, { 'Set-Cookie': clearState })
+  const infoResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(tokenData.id_token)}`)
+  if (!infoResponse.ok) return c.text('Identitas Google tidak valid.', 401, { 'Set-Cookie': clearState })
+  const info = await infoResponse.json() as { aud?: string; iss?: string; sub?: string; email?: string; email_verified?: boolean | string; name?: string; picture?: string }
+  if (info.aud !== c.env.GOOGLE_CLIENT_ID || !['accounts.google.com', 'https://accounts.google.com'].includes(info.iss || '') || (info.email_verified !== true && info.email_verified !== 'true') || !info.sub || !info.email) return c.text('Akun Google belum terverifikasi.', 401, { 'Set-Cookie': clearState })
+  await c.env.DB.prepare('INSERT INTO customer_accounts (google_sub, email, display_name, picture_url, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(google_sub) DO UPDATE SET email=excluded.email, display_name=excluded.display_name, picture_url=excluded.picture_url, updated_at=CURRENT_TIMESTAMP').bind(info.sub, info.email.toLowerCase(), info.name || '', info.picture || null).run()
+  const session = await createCustomerSession({ sub: info.sub, email: info.email.toLowerCase(), name: info.name || '', picture: info.picture }, c.env.CUSTOMER_SESSION_SECRET)
+  const headers = new Headers({ Location: '/account' })
+  headers.append('Set-Cookie', customerCookie(session.value, session.maxAge))
+  headers.append('Set-Cookie', clearState)
+  return new Response(null, { status: 302, headers })
+})
+
+app.post('/auth/logout', async (c) => new Response(null, { status: 302, headers: { Location: '/', 'Set-Cookie': customerCookie('', 0) } }))
+
+app.get('/account', async (c) => {
+  const customer = await customerSession(c)
+  if (!customer) return c.redirect('/login')
+  const db = getDb(c.env)
+  const orders = await db.select().from(s.orders).where(sql`lower(${s.orders.customerEmail}) = ${customer.email.toLowerCase()}`).orderBy(desc(s.orders.createdAt)).limit(50)
+  const settings = await loadSettings(c)
+  return c.html(<Layout title="Akun Saya" settings={settings} customer={customer}><div class="max-w-3xl mx-auto space-y-6"><section class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6"><h1 class="text-2xl font-bold">Akun Saya</h1><p class="mt-2 text-zinc-600 dark:text-zinc-400">{customer.name} · {customer.email}</p><form method="post" action="/auth/logout" class="mt-4"><button class="rounded-md border px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800">Keluar</button></form></section><section class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6"><h2 class="text-xl font-semibold">Riwayat Pesanan</h2>{orders.length ? <div class="mt-4 divide-y divide-zinc-200 dark:divide-zinc-800">{orders.map(order => <a href={`/track?orderId=${encodeURIComponent(order.id)}&email=${encodeURIComponent(customer.email)}`} class="flex flex-wrap items-center justify-between gap-3 py-4 hover:text-primary-600"><span><strong>Pesanan #{order.id}</strong><span class="block text-sm text-zinc-500">{order.createdAt || ''}</span></span><span class="text-right"><strong>{idr(order.totalAmount)}</strong><span class="block text-sm">{order.status}</span></span></a>)}</div> : <p class="mt-4 text-sm text-zinc-500">Belum ada pesanan. <a href="/categories" class="text-primary-600 hover:underline">Lihat produk</a></p>}</section></div></Layout>)
+})
+
+app.get('/api/account/cart', async (c) => {
+  const customer = await customerSession(c)
+  if (!customer) return c.json({ error: 'Silakan masuk' }, 401)
+  const result = await c.env.DB.prepare('SELECT cart_json FROM customer_accounts WHERE google_sub = ?').bind(customer.sub).first<{ cart_json: string }>()
+  let items: unknown[] = []
+  try { items = JSON.parse(result?.cart_json || '[]') } catch {}
+  return c.json({ items })
+})
+
+app.put('/api/account/cart', async (c) => {
+  const customer = await customerSession(c)
+  if (!customer) return c.json({ error: 'Silakan masuk' }, 401)
+  const body = await c.req.json() as { items?: unknown[] }
+  if (!Array.isArray(body.items) || body.items.length > 100) return c.json({ error: 'Data keranjang tidak valid' }, 400)
+  const cart = JSON.stringify(body.items)
+  if (cart.length > 50000) return c.json({ error: 'Keranjang terlalu besar' }, 413)
+  await c.env.DB.prepare('UPDATE customer_accounts SET cart_json = ?, updated_at = CURRENT_TIMESTAMP WHERE google_sub = ?').bind(cart, customer.sub).run()
+  return c.json({ ok: true })
+})
+
 // --- Static Pages ---
 const staticPage = (title: string, content: any) => async (c: any) => {
   const settings = await loadSettings(c)
@@ -93,7 +181,7 @@ app.get('/', async (c) => {
   const featured = await db.select().from(s.products).where(and(eq(s.products.isActive, 1), eq(s.products.isFeatured, 1))).limit(8)
   const cats = await db.select().from(s.categories).orderBy(s.categories.sortOrder)
   const settings = await loadSettings(c)
-  return c.html(<Layout title="Beranda" settings={settings}><HomePage products={featured} categories={cats} settings={settings} /></Layout>)
+  return c.html(<Layout title="Beranda" settings={settings} customer={await customerSession(c)}><HomePage products={featured} categories={cats} settings={settings} /></Layout>)
 })
 
 // --- Product Detail ---
@@ -107,7 +195,7 @@ app.get('/products/:slug', async (c) => {
     related = await db.select().from(s.products).where(and(eq(s.products.categoryId, product.categoryId), eq(s.products.isActive, 1), sql`${s.products.id} != ${product.id}`)).limit(4)
   }
   const settings = await loadSettings(c)
-  return c.html(<Layout title={product.name} settings={settings}><ProductPage product={product} related={related} /></Layout>)
+  return c.html(<Layout title={product.name} settings={settings} customer={await customerSession(c)}><ProductPage product={product} related={related} /></Layout>)
 })
 
 // --- Categories ---
@@ -122,7 +210,7 @@ app.get('/categories', async (c) => {
     productCount: count()
   }).from(s.categories).leftJoin(s.products, and(eq(s.categories.id, s.products.categoryId), eq(s.products.isActive, 1))).groupBy(s.categories.id).orderBy(s.categories.sortOrder)
   const settings = await loadSettings(c)
-  return c.html(<Layout title="Kategori" settings={settings}><CategoriesPage categories={cats} /></Layout>)
+  return c.html(<Layout title="Kategori" settings={settings} customer={await customerSession(c)}><CategoriesPage categories={cats} /></Layout>)
 })
 
 // --- Category Page ---
@@ -147,7 +235,7 @@ app.get('/categories/:slug', async (c) => {
   const totalPages = Math.ceil(total / PER_PAGE)
   const settings = await loadSettings(c)
 
-  return c.html(<Layout title={cat.name} settings={settings}><CategoryPage products={products} categoryName={cat.name} categorySlug={cat.slug} sort={sort} page={page} totalPages={totalPages} /></Layout>)
+  return c.html(<Layout title={cat.name} settings={settings} customer={await customerSession(c)}><CategoryPage products={products} categoryName={cat.name} categorySlug={cat.slug} sort={sort} page={page} totalPages={totalPages} /></Layout>)
 })
 
 // --- Search ---
@@ -171,14 +259,14 @@ app.get('/search', async (c) => {
   const totalPages = Math.ceil(total / PER_PAGE)
   const settings = await loadSettings(c)
 
-  return c.html(<Layout title="Cari" settings={settings}><SearchPage products={products} categories={cats} q={q} category={catId} min={min} max={max} page={page} totalPages={totalPages} /></Layout>)
+  return c.html(<Layout title="Cari" settings={settings} customer={await customerSession(c)}><SearchPage products={products} categories={cats} q={q} category={catId} min={min} max={max} page={page} totalPages={totalPages} /></Layout>)
 })
 
 // --- Checkout ---
 app.get('/checkout', async (c) => {
   const settings = await loadSettings(c)
   const storeConfig = { shipping: getShippingCost(settings), taxRate: getTaxRate(settings) }
-  return c.html(<Layout title="Checkout" settings={settings}><CheckoutPage settings={settings} storeConfig={storeConfig} /></Layout>)
+  return c.html(<Layout title="Checkout" settings={settings} customer={await customerSession(c)}><CheckoutPage settings={settings} storeConfig={storeConfig} /></Layout>)
 })
 
 // --- Success ---
@@ -203,11 +291,11 @@ app.get('/track', async (c) => {
     if (order) {
       const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, order.id))
       const settings = await loadSettings(c)
-      return c.html(<Layout title="Lacak Pesanan" settings={settings}><TrackPage order={{ ...order, items }} /></Layout>)
+      return c.html(<Layout title="Lacak Pesanan" settings={settings} customer={await customerSession(c)}><TrackPage order={{ ...order, items }} /></Layout>)
     }
   }
   const settings = await loadSettings(c)
-  return c.html(<Layout title="Lacak Pesanan" settings={settings}><TrackPage /></Layout>)
+  return c.html(<Layout title="Lacak Pesanan" settings={settings} customer={await customerSession(c)}><TrackPage /></Layout>)
 })
 
 // --- API: Products JSON ---
@@ -302,6 +390,11 @@ app.post('/api/checkout', async (c) => {
     customer = { id: cid, name: customer_name, email: customer_email, phone: customer_phone || '', createdAt: '' }
   }
 
+  const signedInCustomer = await customerSession(c)
+  if (signedInCustomer && signedInCustomer.email.toLowerCase() === String(customer_email).toLowerCase()) {
+    await c.env.DB.prepare('UPDATE customer_accounts SET email = ?, display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE google_sub = ?').bind(signedInCustomer.email, signedInCustomer.name || customer_name, signedInCustomer.sub).run()
+  }
+
   await db.insert(s.orders).values({
     id: orderId,
     customerId: customer.id,
@@ -344,7 +437,55 @@ app.post('/api/checkout', async (c) => {
   lines.push(`💳 Metode: ${paymentMethod === 'mayar' ? 'Mayar' : 'Manual'}`)
   sendTelegramMessage(c.env, lines.join('\n'), { waitUntil: (p) => c.executionCtx.waitUntil(p) })
 
+  if (paymentMethod === 'qris' || paymentMethod === 'qbiz') {
+    if (!c.env.QBIZ_API_URL || !c.env.QBIZ_API_KEY || !c.env.QBIZ_MERCHANT_ID) {
+      return c.json({ error: 'Pembayaran QRIS belum dikonfigurasi' }, 503)
+    }
+    const baseUrl = c.env.QBIZ_API_URL.replace(/\/$/, '')
+    const webhookUrl = new URL('/api/webhooks/qbiz', c.req.url).toString()
+    const invoiceRes = await fetch(`${baseUrl}/api/v1/invoices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${c.env.QBIZ_API_KEY}` },
+      body: JSON.stringify({
+        merchant_id: c.env.QBIZ_MERCHANT_ID,
+        order_id: orderId,
+        amount: total,
+        customer_name,
+        customer_email,
+        customer_phone,
+        callback_url: webhookUrl,
+        redirect_url: new URL(`/checkout/success?orderId=${encodeURIComponent(orderId)}`, c.req.url).toString(),
+        items: dbItems.map(i => ({ name: i.productName, quantity: i.quantity, price: i.productPrice }))
+      })
+    })
+    if (!invoiceRes.ok) return c.json({ error: 'Gagal membuat invoice QRIS' }, 502)
+    const invoice = await invoiceRes.json() as any
+    return c.json({ orderId, paymentUrl: invoice.invoice?.checkout_url || invoice.checkout_url, invoiceId: invoice.invoice?.id || invoice.id })
+  }
+
   return c.json({ orderId })
+})
+
+// --- API: QBiz Webhook ---
+app.post('/api/webhooks/qbiz', async (c) => {
+  if (!c.env.QBIZ_WEBHOOK_SECRET) return c.json({ ok: false, error: 'Webhook belum dikonfigurasi' }, 503)
+  const raw = await c.req.text()
+  const signature = c.req.header('X-QBiz-Signature') || ''
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(c.env.QBIZ_WEBHOOK_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'])
+  const signatureBytes = new Uint8Array(signature.match(/.{1,2}/g)?.map(x => parseInt(x, 16)) || [])
+  const valid = signatureBytes.length === 32 && await crypto.subtle.verify('HMAC', key, signatureBytes, new TextEncoder().encode(raw))
+  if (!valid) return c.json({ ok: false, error: 'signature tidak valid' }, 401)
+  let body: any
+  try { body = JSON.parse(raw) } catch { return c.json({ ok: false, error: 'invalid json' }, 400) }
+  const orderId = body.data?.order_id || body.order_id
+  const event = body.event || c.req.header('X-QBiz-Event')
+  if (!orderId || event !== 'payment.success') return c.json({ ok: true })
+  const db = getDb(c.env)
+  const [order] = await db.select().from(s.orders).where(eq(s.orders.id, orderId)).limit(1)
+  if (order && order.status !== 'paid') {
+    await db.update(s.orders).set({ status: 'paid', paymentId: body.data?.invoice_id || order.paymentId, updatedAt: now() }).where(eq(s.orders.id, orderId))
+  }
+  return c.json({ ok: true })
 })
 
 // --- API: Mayar Checkout ---
