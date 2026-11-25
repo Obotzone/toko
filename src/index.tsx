@@ -494,24 +494,30 @@ app.post('/api/webhooks/qbiz', async (c) => {
 app.post('/api/checkout/mayar', async (c) => {
   const body = await c.req.json()
   const { orderId } = body
-  if (!c.env.MAYAR_API_KEY) return c.json({ error: 'Mayar tidak dikonfigurasi' }, 400)
+  if (!c.env.MAYAR_API_KEY) return c.json({ error: 'Mayar tidak dikonfigurasi' }, 503)
   const db = getDb(c.env)
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, orderId)).limit(1)
   if (!order) return c.json({ error: 'Pesanan tidak ditemukan' }, 404)
+  if (!order.customerPhone) return c.json({ error: 'Nomor telepon wajib diisi untuk pembayaran Mayar' }, 400)
   const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, orderId))
 
-  const result = await createMayarInvoice(c.env.MAYAR_API_KEY, {
-    name: order.customerName,
-    email: order.customerEmail,
-    mobile: order.customerPhone || undefined,
-    description: `Pesanan ${orderId.slice(0, 8)}`,
-    items: items.map(i => ({ quantity: i.quantity, rate: i.productPrice, description: i.productName })),
-    expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    extraData: { orderId }
-  })
+  try {
+    const result = await createMayarInvoice(c.env.MAYAR_API_KEY, {
+      name: order.customerName,
+      email: order.customerEmail,
+      mobile: order.customerPhone,
+      description: `Pesanan ${orderId.slice(0, 8)}`,
+      items: items.map(i => ({ quantity: i.quantity, rate: i.productPrice, description: i.productName })),
+      expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      extraData: { orderId }
+    })
 
-  await db.update(s.orders).set({ paymentId: result.data.id }).where(eq(s.orders.id, orderId))
-  return c.json({ link: result.data.link })
+    await db.update(s.orders).set({ paymentId: result.data.id }).where(eq(s.orders.id, orderId))
+    return c.json({ link: result.data.link })
+  } catch (err) {
+    console.error('[Mayar] Invoice creation failed:', err instanceof Error ? err.message : String(err))
+    return c.json({ error: err instanceof Error ? err.message : 'Gagal membuat invoice Mayar' }, 502)
+  }
 })
 
 // --- API: Mayar Webhook ---

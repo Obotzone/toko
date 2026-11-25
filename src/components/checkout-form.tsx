@@ -16,7 +16,7 @@ export const CheckoutForm = ({ mayarEnabled = false, settings = {}, storeConfig 
         <input type="email" id="customer_email" name="customer_email" autocomplete="email" enterkeyhint="next" required class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
       </div>
       <div>
-        <label for="customer_phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telepon (Opsional)</label>
+        <label for="customer_phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telepon ${mayarEnabled ? '(Wajib untuk Mayar)' : '(Opsional)'}</label>
         <input type="tel" id="customer_phone" name="customer_phone" autocomplete="tel" inputmode="tel" enterkeyhint="next" class="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
       </div>
       <div class="md:col-span-2">

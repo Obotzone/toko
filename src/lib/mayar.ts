@@ -31,9 +31,11 @@ export async function createMayarInvoice(apiKey: string, payload: MayarPayload):
     },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Mayar API error ${res.status}: ${body}`);
+  const body = await res.json().catch(() => null) as any
+  if (!res.ok || !body || (body.statusCode && body.statusCode >= 400)) {
+    const message = body?.messages || body?.message || `HTTP ${res.status}`
+    throw new Error(`Mayar API error ${res.status}: ${message}`)
   }
-  return res.json();
+  if (!body.data?.id || !body.data?.link) throw new Error('Mayar API response tidak lengkap')
+  return body as MayarResponse;
 }
