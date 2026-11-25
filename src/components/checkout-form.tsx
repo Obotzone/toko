@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
 
-export const CheckoutForm = ({ settings = {}, storeConfig = { shipping: 15000, taxRate: 0.11 } }: { settings?: Record<string, string>; storeConfig?: { shipping: number; taxRate: number } }): any => html`
+export const CheckoutForm = ({ mayarEnabled = false, settings = {}, storeConfig = { shipping: 15000, taxRate: 0.11 } }: { mayarEnabled?: boolean; settings?: Record<string, string>; storeConfig?: { shipping: number; taxRate: number } }): any => html`
   ${html`<script>window.STORE_CONFIG = { shipping: ${storeConfig.shipping}, taxRate: ${storeConfig.taxRate} };</script>`}
   <form id="checkout-form" class="space-y-6">
     <input type="hidden" id="checkout-items-input" name="items" value="[]">
@@ -28,23 +28,25 @@ export const CheckoutForm = ({ settings = {}, storeConfig = { shipping: 15000, t
     <div>
       <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Metode Pembayaran</label>
       <div class="space-y-3">
+        ${mayarEnabled ? html`
         <label class="flex items-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
-          <input type="radio" name="paymentMethod" value="qris" checked class="text-primary-600 focus:ring-primary-500 mr-3">
+          <input type="radio" name="paymentMethod" value="mayar" checked class="text-primary-600 focus:ring-primary-500 mr-3">
           <div>
-            <span class="block font-medium text-sm">QRIS Otomatis</span>
-            <span class="block text-xs text-zinc-500">Scan QRIS dan status pembayaran diperbarui otomatis.</span>
+            <span class="block font-medium text-sm">QRIS / E-Wallet / VA Otomatis</span>
+            <span class="block text-xs text-zinc-500">Pembayaran melalui Mayar, verifikasi otomatis.</span>
           </div>
         </label>
+        ` : ''}
 
-        <label class="flex items-center
- p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
-          <input type="radio" name="paymentMethod" value="manual" class="text-primary-600 focus:ring-primary-500 mr-3">
+        <label class="flex items-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-md cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
+          <input type="radio" name="paymentMethod" value="manual" ${mayarEnabled ? '' : 'checked'} class="text-primary-600 focus:ring-primary-500 mr-3">
           <div>
             <span class="block font-medium text-sm">Transfer Bank Manual</span>
             <span class="block text-xs text-zinc-500">Transfer ke rekening kami, tunggu verifikasi admin.</span>
           </div>
         </label>
-      </div>
+
+              </div>
     </div>
 
     <div class="bg-zinc-50 dark:bg-zinc-900 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">

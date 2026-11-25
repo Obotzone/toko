@@ -192,8 +192,26 @@ document.addEventListener('submit', async function(e) {
     }
     var result = await res.json();
     var orderId = result.orderId;
+    var pm = data.paymentMethod;
     localStorage.removeItem(Cart.KEY);
-    window.location.href = result.paymentUrl || '/checkout/success?orderId=' + encodeURIComponent(orderId);
+    if (pm === 'mayar') {
+      var mayarRes = await fetch('/api/checkout/mayar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: orderId })
+      });
+      if (mayarRes.ok) {
+        var link = (await mayarRes.json()).link;
+        window.location.href = link;
+      } else {
+        var mayarErr = await mayarRes.json().catch(function() { return {}; });
+        alert(mayarErr.error || 'Gagal membuat pembayaran Mayar');
+        btn.disabled = false;
+        btn.textContent = 'Bayar Sekarang';
+      }
+    } else {
+      window.location.href = '/checkout/success?orderId=' + encodeURIComponent(orderId);
+    }
   } catch (err) {
     alert('Terjadi kesalahan: ' + err.message);
     btn.disabled = false;

@@ -28,8 +28,9 @@ import { ContactPage } from './pages/static/contact'
 import { PrivacyPage } from './pages/static/privacy'
 import { ShippingPage } from './pages/static/shipping'
 import { createCustomerSession, readCustomerSession, randomToken, readCookie, CUSTOMER_COOKIE, OAUTH_STATE_COOKIE, GOOGLE_STATE_MAX_AGE } from './lib/customer-auth'
+import { createMayarInvoice } from './lib/mayar'
 
-const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; QBIZ_API_URL?: string; QBIZ_API_KEY?: string; QBIZ_WEBHOOK_SECRET?: string; QBIZ_MERCHANT_ID?: string; ADMIN_SECRET?: string; GOOGLE_CLIENT_ID?: string; GOOGLE_CLIENT_SECRET?: string; CUSTOMER_SESSION_SECRET?: string; TELEGRAM_BOT_TOKEN?: string; TELEGRAM_CHAT_ID?: string } }>()
+const app = new Hono<{ Bindings: { DB: D1Database; BUCKET: R2Bucket; QBIZ_API_URL?: string; QBIZ_API_KEY?: string; QBIZ_WEBHOOK_SECRET?: string; QBIZ_MERCHANT_ID?: string; MAYAR_API_KEY?: string; ADMIN_SECRET?: string; GOOGLE_CLIENT_ID?: string; GOOGLE_CLIENT_SECRET?: string; CUSTOMER_SESSION_SECRET?: string; TELEGRAM_BOT_TOKEN?: string; TELEGRAM_CHAT_ID?: string } }>()
 const PER_PAGE = 20
 const RATE_WINDOW_MS = 60_000
 const rateBuckets = new Map<string, { count: number; resetAt: number }>()
@@ -266,7 +267,8 @@ app.get('/search', async (c) => {
 app.get('/checkout', async (c) => {
   const settings = await loadSettings(c)
   const storeConfig = { shipping: getShippingCost(settings), taxRate: getTaxRate(settings) }
-  return c.html(<Layout title="Checkout" settings={settings} customer={await customerSession(c)}><CheckoutPage settings={settings} storeConfig={storeConfig} /></Layout>)
+  const mayarEnabled = !!c.env.MAYAR_API_KEY && settings['mayar_enabled'] !== '0'
+  return c.html(<Layout title="Checkout" settings={settings} customer={await customerSession(c)}><CheckoutPage mayarEnabled={mayarEnabled} settings={settings} storeConfig={storeConfig} /></Layout>)
 })
 
 // --- Success ---
@@ -490,8 +492,6 @@ app.post('/api/webhooks/qbiz', async (c) => {
 
 // --- API: Mayar Checkout ---
 app.post('/api/checkout/mayar', async (c) => {
-  return c.json({ error: 'Payment gateway sedang dinonaktifkan sementara' }, 410)
-  /*
   const body = await c.req.json()
   const { orderId } = body
   if (!c.env.MAYAR_API_KEY) return c.json({ error: 'Mayar tidak dikonfigurasi' }, 400)
@@ -512,7 +512,6 @@ app.post('/api/checkout/mayar', async (c) => {
 
   await db.update(s.orders).set({ paymentId: result.data.id }).where(eq(s.orders.id, orderId))
   return c.json({ link: result.data.link })
-  */
 })
 
 // --- API: Mayar Webhook ---

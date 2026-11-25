@@ -1,7 +1,7 @@
 import { html } from 'hono/html';
 import { CheckoutForm } from '../components/checkout-form';
 
-export const CheckoutPage = ({ settings = {}, storeConfig = { shipping: 15000, taxRate: 0.11 } }: { settings?: Record<string, string>; storeConfig?: { shipping: number; taxRate: number } }): any => html`
+export const CheckoutPage = ({ mayarEnabled = false, settings = {}, storeConfig = { shipping: 15000, taxRate: 0.11 } }: { mayarEnabled?: boolean; settings?: Record<string, string>; storeConfig?: { shipping: number; taxRate: number } }): any => html`
   <div class="max-w-3xl mx-auto">
     <a href="/" class="text-sm text-primary-600 hover:text-primary-500 mb-6 inline-block">&larr; Lanjut Belanja</a>
     <div class="mb-8">
@@ -10,7 +10,7 @@ export const CheckoutPage = ({ settings = {}, storeConfig = { shipping: 15000, t
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2">
-        ${CheckoutForm({ settings, storeConfig })}
+        ${CheckoutForm({ mayarEnabled, settings, storeConfig })}
       </div>
       <div class="lg:col-span-1">
         <div class="sticky top-24 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
